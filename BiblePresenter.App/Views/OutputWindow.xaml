@@ -1,0 +1,31 @@
+<Window x:Class="BiblePresenter.App.Views.OutputWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:gif="clr-namespace:WpfAnimatedGif;assembly=WpfAnimatedGif"
+        xmlns:local="clr-namespace:BiblePresenter.App.Views"
+        Title="Projector Output" Background="Black"
+        WindowStyle="None" ResizeMode="NoResize"
+        WindowStartupLocation="Manual" ShowInTaskbar="False">
+    <Window.Resources>
+        <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
+        <local:PathToImageSourceConverter x:Key="PathToImageSource" />
+    </Window.Resources>
+
+    <Grid Visibility="{Binding IsBlank, Converter={StaticResource InverseBoolToVisibility}}">
+        <Image Stretch="UniformToFill"
+               gif:ImageBehavior.AnimatedSource="{Binding CurrentBackground.FilePath, Converter={StaticResource PathToImageSource}}" />
+
+        <StackPanel x:Name="TextPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="100" Opacity="0">
+            <Border Background="#B0000000" Padding="60,36" CornerRadius="10">
+                <StackPanel>
+                    <TextBlock Text="{Binding CurrentVerse.Text}"
+                               FontSize="52" FontFamily="Segoe UI" Foreground="White"
+                               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="1400" />
+                    <TextBlock Text="{Binding CurrentVerse.Reference}"
+                               FontSize="26" FontFamily="Segoe UI Semibold" Foreground="#FFE0C060"
+                               TextAlignment="Center" Margin="0,20,0,0" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</Window>

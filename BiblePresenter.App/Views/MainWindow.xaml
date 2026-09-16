@@ -1,0 +1,110 @@
+<Window x:Class="BiblePresenter.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:BiblePresenter.App.Views"
+        Title="Bible Presenter" Height="760" Width="1180"
+        Background="#FF1E1F24" WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <local:ScreenToLabelConverter x:Key="ScreenToLabel" />
+
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Background" Value="#FF33353D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFE8E8EA" />
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Top bar: translation + projector screen selection -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="Translation:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <ComboBox Width="220" ItemsSource="{Binding Translations}" SelectedItem="{Binding SelectedTranslation}" DisplayMemberPath="Abbreviation" />
+            <Button Content="Import Bible XML..." Command="{Binding ImportBibleCommand}" DockPanel.Dock="Left" Margin="8,0" />
+            <Button Content="Remove" Command="{Binding RemoveTranslationCommand}" CommandParameter="{Binding SelectedTranslation}" />
+
+            <TextBlock Text="Projector:" VerticalAlignment="Center" Margin="24,0,6,0" />
+            <ComboBox Width="260" ItemsSource="{Binding Screens}" SelectedItem="{Binding SelectedScreen}"
+                      HorizontalAlignment="Right">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource ScreenToLabel}}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </DockPanel>
+
+        <!-- Search box -->
+        <DockPanel Grid.Row="1" Margin="0,0,0,10">
+            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBox x:Name="SearchBox" FontSize="18" Padding="8,6"
+                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     Background="#FF2A2C33" Foreground="White" BorderThickness="0"
+                     KeyDown="SearchBox_KeyDown" />
+        </DockPanel>
+
+        <!-- Results + preview + media library -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="1*" />
+            </Grid.ColumnDefinitions>
+
+            <ListBox Grid.Column="0" x:Name="ResultsList"
+                     ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}"
+                     Background="#FF25262C" Foreground="White" BorderThickness="0"
+                     VirtualizingStackPanel.IsVirtualizing="True"
+                     VirtualizingStackPanel.VirtualizationMode="Recycling"
+                     ScrollViewer.CanContentScroll="True"
+                     MouseDoubleClick="ResultsList_MouseDoubleClick">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="6,4">
+                            <TextBlock Text="{Binding Reference}" FontWeight="Bold" Foreground="#FFE0C060" />
+                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Media library sidebar -->
+            <DockPanel Grid.Column="2">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <TextBlock Text="Backgrounds" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Button Content="Import..." Command="{Binding ImportMediaCommand}" HorizontalAlignment="Right" DockPanel.Dock="Right" Margin="0" />
+                </DockPanel>
+                <Button DockPanel.Dock="Bottom" Content="Remove Background" Margin="0,6,0,0"
+                        Command="{Binding RemoveMediaCommand}" CommandParameter="{Binding SelectedBackground}" />
+                <ListBox ItemsSource="{Binding Backgrounds}" SelectedItem="{Binding SelectedBackground}"
+                         Background="#FF25262C" Foreground="White" BorderThickness="0" DisplayMemberPath="Name" />
+            </DockPanel>
+        </Grid>
+
+        <!-- Transport controls -->
+        <DockPanel Grid.Row="3" Margin="0,10,0,0">
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Opacity="0.7" DockPanel.Dock="Left" />
+            <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                <Button Content="Clear / Black" Command="{Binding ClearCommand}" />
+                <Button Content="Next ▶" Command="{Binding NextVerseCommand}" />
+                <Button Content="◀ Prev" Command="{Binding PrevVerseCommand}" />
+                <Button Content="Go Live" Command="{Binding GoLiveCommand}" Background="#FF3E7D3E" FontWeight="Bold" Padding="20,8" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>
