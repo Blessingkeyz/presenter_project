@@ -12,12 +12,16 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
 
         var monitorService = new MonitorService();
+        var songLibrary = new SongLibraryService(new SongImportService());
         var viewModel = new MainViewModel(
             new BibleImportService(),
             new TranslationStore(),
             new MediaLibraryService(),
             new SearchIndexService(),
-            monitorService);
+            monitorService,
+            new SettingsStore(),
+            new SetXmlStore(songLibrary),
+            songLibrary);
 
         var mainWindow = new MainWindow(viewModel, monitorService);
         MainWindow = mainWindow;

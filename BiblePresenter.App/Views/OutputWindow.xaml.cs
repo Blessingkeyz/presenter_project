@@ -23,7 +23,7 @@ public partial class OutputWindow : Window
 
     private void OnOutputPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(OutputViewModel.CurrentVerse))
+        if (e.PropertyName != nameof(OutputViewModel.BodyText))
             return;
 
         var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180));

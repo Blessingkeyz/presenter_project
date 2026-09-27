@@ -14,6 +14,11 @@ public class ReferenceParserTests
     [InlineData("1cor 13:4", "1 Corinthians", 13, 4, null)]
     [InlineData("genesis 1:1-3", "Genesis", 1, 1, 3)]
     [InlineData("song of solomon 2:1", "Song of Solomon", 2, 1, null)]
+    [InlineData("gen 2 2-10", "Genesis", 2, 2, 10)]
+    [InlineData("genesis 1 5", "Genesis", 1, 5, null)]
+    [InlineData("jn 3  16", "John", 3, 16, null)]
+    [InlineData("gen 1 3-4", "Genesis", 1, 3, 4)]
+    [InlineData("gen 1 3 4", "Genesis", 1, 3, 4)]
     public void TryParse_ResolvesKnownReferenceFormats(string query, string expectedBook, int expectedChapter, int? expectedV1, int? expectedV2)
     {
         var result = _parser.TryParse(query);
@@ -33,5 +38,36 @@ public class ReferenceParserTests
     public void TryParse_ReturnsNullForNonReferenceQueries(string query)
     {
         Assert.Null(_parser.TryParse(query));
+    }
+
+    [Fact]
+    public void ParseAll_AmbiguousBareStem_ReturnsBothNumberedBooks()
+    {
+        var results = _parser.ParseAll("thess 2 1-5");
+
+        Assert.Equal(2, results.Count);
+        Assert.Equal("1 Thessalonians", results[0].Book.Name);
+        Assert.Equal("2 Thessalonians", results[1].Book.Name);
+        Assert.All(results, r =>
+        {
+            Assert.Equal(2, r.Chapter);
+            Assert.Equal(1, r.VerseStart);
+            Assert.Equal(5, r.VerseEnd);
+        });
+    }
+
+    [Fact]
+    public void ParseAll_UnambiguousReference_ReturnsSingleResult()
+    {
+        var results = _parser.ParseAll("jn 3:16");
+
+        var single = Assert.Single(results);
+        Assert.Equal("John", single.Book.Name);
+    }
+
+    [Fact]
+    public void ParseAll_NonReferenceQuery_ReturnsEmpty()
+    {
+        Assert.Empty(_parser.ParseAll("for god so loved the world"));
     }
 }

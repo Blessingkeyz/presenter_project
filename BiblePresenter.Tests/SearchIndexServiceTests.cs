@@ -14,6 +14,8 @@ public class SearchIndexServiceTests
             new() { TranslationId = "t1", BookIndex = 1, BookName = "Genesis", Chapter = 1, Number = 2, Text = "And the earth was without form, and void." },
             new() { TranslationId = "t1", BookIndex = 43, BookName = "John", Chapter = 3, Number = 16, Text = "For God so loved the world, that he gave his only begotten Son." },
             new() { TranslationId = "t1", BookIndex = 43, BookName = "John", Chapter = 3, Number = 17, Text = "For God sent not his Son into the world to condemn the world." },
+            new() { TranslationId = "t1", BookIndex = 52, BookName = "1 Thessalonians", Chapter = 2, Number = 1, Text = "For yourselves, brethren, know our entrance in unto you, that it was not in vain." },
+            new() { TranslationId = "t1", BookIndex = 53, BookName = "2 Thessalonians", Chapter = 2, Number = 1, Text = "Now we beseech you, brethren, by the coming of our Lord Jesus Christ." },
         };
 
         return new Translation { Id = "t1", Name = "Test", Abbreviation = "TST", Verses = verses };
@@ -77,5 +79,34 @@ public class SearchIndexServiceTests
         var result = index.Search("xyzzy");
 
         Assert.Empty(result.Verses);
+    }
+
+    [Fact]
+    public void Search_MisspelledWord_FallsBackToClosestMatch()
+    {
+        var index = BuildLoadedIndex();
+        // "beginning" misspelled by one letter - no exact/prefix hit, should still find it via
+        // the approximate ("closest to") fallback.
+        var result = index.Search("begining");
+
+        Assert.False(result.WasReferenceJump);
+        var verse = Assert.Single(result.Verses);
+        Assert.Equal(1, verse.Number);
+        Assert.Equal("Genesis", verse.BookName);
+    }
+
+    [Fact]
+    public void Search_AmbiguousBookStem_ReturnsBothBooksAsFlatListNotASinglePassage()
+    {
+        var index = BuildLoadedIndex();
+        var result = index.Search("thess 2 1");
+
+        // Two distinct books (1 & 2 Thessalonians) can't form one continuous passage, so this
+        // must NOT be flagged as a reference jump - GoLive falls back to single-verse behavior
+        // instead of trying to build one (invalid) range label spanning both books.
+        Assert.False(result.WasReferenceJump);
+        Assert.Equal(2, result.Verses.Count);
+        Assert.Equal("1 Thessalonians", result.Verses[0].BookName);
+        Assert.Equal("2 Thessalonians", result.Verses[1].BookName);
     }
 }

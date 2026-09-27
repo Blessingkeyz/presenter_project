@@ -45,8 +45,8 @@ public partial class MainWindow : Window
         {
             _outputWindow.WindowStyle = WindowStyle.SingleBorderWindow;
             _outputWindow.ResizeMode = ResizeMode.CanResize;
-            _outputWindow.Width = 480;
-            _outputWindow.Height = 270;
+            _outputWindow.Width = 960;
+            _outputWindow.Height = 540;
         }
     }
 
@@ -55,8 +55,15 @@ public partial class MainWindow : Window
         if (e.Key != Key.Enter)
             return;
 
-        if (_viewModel.SelectedResult is null && _viewModel.SearchResults.Count > 0)
+        if (_viewModel.IsSongSearch)
+        {
+            if (_viewModel.SelectedSongResult is null && _viewModel.SongResults.Count > 0)
+                _viewModel.SelectedSongResult = _viewModel.SongResults[0];
+        }
+        else if (_viewModel.SelectedResult is null && _viewModel.SearchResults.Count > 0)
+        {
             _viewModel.SelectedResult = _viewModel.SearchResults[0];
+        }
 
         if (_viewModel.GoLiveCommand.CanExecute(null))
             _viewModel.GoLiveCommand.Execute(null);
@@ -66,5 +73,18 @@ public partial class MainWindow : Window
     {
         if (_viewModel.GoLiveCommand.CanExecute(null))
             _viewModel.GoLiveCommand.Execute(null);
+    }
+
+    private void SetItemsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) => OpenEditItemDialog();
+
+    private void EditItem_Click(object sender, RoutedEventArgs e) => OpenEditItemDialog();
+
+    private void OpenEditItemDialog()
+    {
+        if (_viewModel.SelectedSetItem is not { } item)
+            return;
+
+        var dialog = new EditSetItemDialog(item, _viewModel.SaveSongToLibraryCommand) { Owner = this };
+        dialog.ShowDialog();
     }
 }

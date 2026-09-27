@@ -12,7 +12,9 @@ public sealed class SearchResult
 /// <summary>
 /// Fast, ProPresenter-style verse search over a single loaded translation: a direct
 /// (book, chapter, verse) reference jump, or an in-memory inverted-index prefix search
-/// over the whole translation, both fast enough to run on every keystroke.
+/// over the whole translation, both fast enough to run on every keystroke. Falls back to
+/// approximate ("closest to") word matching when a query word has no exact/prefix hits,
+/// so small typos still find something.
 /// </summary>
 public sealed class SearchIndexService
 {
@@ -61,12 +63,21 @@ public sealed class SearchIndexService
 
     public SearchResult Search(string query, int maxResults = 200)
     {
-        var reference = _referenceParser.TryParse(query);
-        if (reference is not null)
+        var references = _referenceParser.ParseAll(query);
+        if (references.Count > 0)
         {
-            var verses = ResolveReference(reference);
-            if (verses.Count > 0)
-                return new SearchResult { Verses = verses, WasReferenceJump = true };
+            var allVerses = new List<Verse>();
+            foreach (var reference in references)
+                allVerses.AddRange(ResolveReference(reference));
+
+            if (allVerses.Count > 0)
+            {
+                // A single matched book forms one continuous passage (used for range
+                // Present/Next-Prev stepping); multiple candidate books (an ambiguous stem like
+                // "thess") are shown as a flat list of individually selectable verses instead -
+                // they don't share one book/chapter, so they can't form one passage.
+                return new SearchResult { Verses = allVerses, WasReferenceJump = references.Count == 1 };
+            }
         }
 
         return new SearchResult { Verses = KeywordSearch(query, maxResults), WasReferenceJump = false };
@@ -104,7 +115,7 @@ public sealed class SearchIndexService
         HashSet<int>? candidates = null;
         foreach (var word in words)
         {
-            var matches = CandidatesForPrefix(word);
+            var matches = CandidatesForWord(word);
             if (candidates is null)
             {
                 candidates = matches;
@@ -125,6 +136,12 @@ public sealed class SearchIndexService
             .ToList();
     }
 
+    private HashSet<int> CandidatesForWord(string word)
+    {
+        var exact = CandidatesForPrefix(word);
+        return exact.Count > 0 ? exact : FuzzyCandidates(word);
+    }
+
     private HashSet<int> CandidatesForPrefix(string prefix)
     {
         var result = new HashSet<int>();
@@ -138,6 +155,75 @@ public sealed class SearchIndexService
                 result.Add(idx);
         }
         return result;
+    }
+
+    /// <summary>
+    /// "Closest to" fallback for a word with no exact/prefix hits: finds indexed words within a
+    /// small edit distance (so e.g. "beleive" still finds "believe") and returns the union of
+    /// verses for whichever word(s) are closest. Skipped for very short words, where almost
+    /// everything is within 1-2 edits and results would be meaningless.
+    /// </summary>
+    private HashSet<int> FuzzyCandidates(string word)
+    {
+        var result = new HashSet<int>();
+        if (word.Length < 4)
+            return result;
+
+        var maxDistance = word.Length <= 6 ? 1 : 2;
+        var bestDistance = maxDistance + 1;
+
+        foreach (var candidate in _sortedWords)
+        {
+            if (Math.Abs(candidate.Length - word.Length) > maxDistance)
+                continue;
+
+            var distance = LevenshteinDistance(word, candidate, maxDistance);
+            if (distance > maxDistance)
+                continue;
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                result.Clear();
+            }
+            if (distance == bestDistance)
+            {
+                foreach (var idx in _postings[candidate])
+                    result.Add(idx);
+            }
+        }
+
+        return result;
+    }
+
+    private static int LevenshteinDistance(string a, string b, int maxDistance)
+    {
+        var lenA = a.Length;
+        var lenB = b.Length;
+
+        var previous = new int[lenB + 1];
+        var current = new int[lenB + 1];
+        for (var j = 0; j <= lenB; j++)
+            previous[j] = j;
+
+        for (var i = 1; i <= lenA; i++)
+        {
+            current[0] = i;
+            var rowMin = current[0];
+            for (var j = 1; j <= lenB; j++)
+            {
+                var cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
+                rowMin = Math.Min(rowMin, current[j]);
+            }
+
+            if (rowMin > maxDistance)
+                return maxDistance + 1;
+
+            (previous, current) = (current, previous);
+        }
+
+        return previous[lenB];
     }
 
     private int LowerBound(string prefix)

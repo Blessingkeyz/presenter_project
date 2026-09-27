@@ -24,4 +24,8 @@
     <ProjectReference Include="..\BiblePresenter.App\BiblePresenter.App.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

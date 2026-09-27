@@ -9,23 +9,49 @@
     <Window.Resources>
         <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
         <local:PathToImageSourceConverter x:Key="PathToImageSource" />
+        <local:FontNameToFontFamilyConverter x:Key="FontNameToFontFamily" />
+        <local:HexToBrushConverter x:Key="HexToBrush" />
+        <local:BoolToFontWeightConverter x:Key="BoolToFontWeight" />
+
+        <Style TargetType="local:OutlinedTextBlock">
+            <Setter Property="FontFamily" Value="{Binding FontFamilyName, Converter={StaticResource FontNameToFontFamily}}" />
+            <Setter Property="FontWeight" Value="{Binding IsBold, Converter={StaticResource BoolToFontWeight}}" />
+            <Setter Property="IsItalic" Value="{Binding IsItalic}" />
+            <Setter Property="IsUnderline" Value="{Binding IsUnderline}" />
+            <Setter Property="Fill" Value="{Binding TextColor, Converter={StaticResource HexToBrush}}" />
+            <Setter Property="BorderEnabled" Value="{Binding BorderEnabled}" />
+            <Setter Property="Stroke" Value="{Binding BorderColor, Converter={StaticResource HexToBrush}}" />
+            <Setter Property="HasShadow" Value="{Binding ShadowEnabled}" />
+            <Setter Property="ShadowColor" Value="{Binding ShadowColor, Converter={StaticResource HexToBrush}}" />
+        </Style>
     </Window.Resources>
 
     <Grid Visibility="{Binding IsBlank, Converter={StaticResource InverseBoolToVisibility}}">
         <Image Stretch="UniformToFill"
                gif:ImageBehavior.AnimatedSource="{Binding CurrentBackground.FilePath, Converter={StaticResource PathToImageSource}}" />
 
-        <StackPanel x:Name="TextPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="100" Opacity="0">
-            <Border Background="#B0000000" Padding="60,36" CornerRadius="10">
-                <StackPanel>
-                    <TextBlock Text="{Binding CurrentVerse.Text}"
-                               FontSize="52" FontFamily="Segoe UI" Foreground="White"
-                               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="1400" />
-                    <TextBlock Text="{Binding CurrentVerse.Reference}"
-                               FontSize="26" FontFamily="Segoe UI Semibold" Foreground="#FFE0C060"
-                               TextAlignment="Center" Margin="0,20,0,0" />
-                </StackPanel>
-            </Border>
-        </StackPanel>
+        <Grid x:Name="TextPanel" Margin="60,36" Opacity="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <local:OutlinedTextBlock Grid.Row="0"
+                                      Text="{Binding TopText}"
+                                      HorizontalAlignment="Center" TextAlignment="Center"
+                                      FontSize="{Binding TitleFontSize}" />
+
+            <local:OutlinedTextBlock Grid.Row="1"
+                                      Text="{Binding BodyText}"
+                                      VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                      TextAlignment="Left"
+                                      FontSize="{Binding BodyFontSize}" />
+
+            <local:OutlinedTextBlock Grid.Row="2"
+                                      Text="{Binding BottomText}"
+                                      HorizontalAlignment="Center" TextAlignment="Center"
+                                      FontSize="{Binding SubtitleFontSize}" />
+        </Grid>
     </Grid>
 </Window>

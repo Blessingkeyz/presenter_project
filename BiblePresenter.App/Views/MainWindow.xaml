@@ -1,110 +1,594 @@
 <Window x:Class="BiblePresenter.App.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:gif="clr-namespace:WpfAnimatedGif;assembly=WpfAnimatedGif"
         xmlns:local="clr-namespace:BiblePresenter.App.Views"
-        Title="Bible Presenter" Height="760" Width="1180"
-        Background="#FF1E1F24" WindowStartupLocation="CenterScreen">
+        Title="Bible Presenter" Height="760" Width="1180" MinWidth="980" MinHeight="620"
+        Background="#FF15161A" WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI">
     <Window.Resources>
         <local:ScreenToLabelConverter x:Key="ScreenToLabel" />
+        <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+        <local:SlidesToTextConverter x:Key="SlidesToText" />
+        <local:InverseBoolConverter x:Key="InverseBool" />
+        <local:PathToImageSourceConverter x:Key="PathToImageSource" />
+        <local:FontNameToFontFamilyConverter x:Key="FontNameToFontFamily" />
+        <local:HexToBrushConverter x:Key="HexToBrush" />
+        <local:BoolToFontWeightConverter x:Key="BoolToFontWeight" />
 
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,6" />
+        <!-- ===================== Palette ===================== -->
+        <SolidColorBrush x:Key="AppBg" Color="#FF15161A" />
+        <SolidColorBrush x:Key="HeaderBg" Color="#FF1B1C22" />
+        <SolidColorBrush x:Key="CardBg" Color="#FF1D1E24" />
+        <SolidColorBrush x:Key="CardBorder" Color="#FF272932" />
+        <SolidColorBrush x:Key="InputBg" Color="#FF212228" />
+        <SolidColorBrush x:Key="InputBorder" Color="#FF2E313C" />
+        <SolidColorBrush x:Key="PillBg" Color="#FF212228" />
+        <SolidColorBrush x:Key="HoverBg" Color="#FF272932" />
+        <SolidColorBrush x:Key="SelectedBg" Color="#FF25304A" />
+        <SolidColorBrush x:Key="Accent" Color="#FF5B8DEF" />
+        <SolidColorBrush x:Key="AccentHover" Color="#FF6E9CF5" />
+        <SolidColorBrush x:Key="TextPrimary" Color="#FFF2F2F5" />
+        <SolidColorBrush x:Key="TextMuted" Color="#FF9A9DA8" />
+        <SolidColorBrush x:Key="TextFaint" Color="#FF6E7079" />
+        <SolidColorBrush x:Key="Gold" Color="#FFE0C060" />
+
+        <!-- ===================== Text ===================== -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="Background" Value="#FF33353D" />
-            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+
+        <Style x:Key="EditorLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+
+        <!-- ===================== Buttons ===================== -->
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Background" Value="#FF262832" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF31333F" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF3B3E4C" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#FFE8E8EA" />
+
+        <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="9,7" />
+            <Setter Property="Margin" Value="0,0,4,0" />
         </Style>
+
+        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="26,11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#FF2FA84F" CornerRadius="9"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF37BD5B" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF278F42" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===================== Segmented pill toggle (RadioButton) ===================== -->
+        <Style x:Key="SegmentToggle" TargetType="RadioButton">
+            <Setter Property="Padding" Value="16,7" />
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Accent}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter Property="FontWeight" Value="Normal" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Pill" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PillBg}" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+
+        <!-- ===================== Cards ===================== -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBg}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="16" />
+        </Style>
+
+        <!-- ===================== TextBox ===================== -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource InputBg}" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="CaretBrush" Value="{StaticResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"
+                                          HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="EditorBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+
+        <!-- ===================== ComboBox ===================== -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}" Margin="2">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectedBg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource InputBg}" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,7" />
             <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press" Background="Transparent"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" IsHitTestVisible="False">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Grid.Column="0" IsHitTestVisible="False"
+                                                       Content="{TemplateBinding SelectionBoxItem}"
+                                                       ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                       Margin="{TemplateBinding Padding}"
+                                                       VerticalAlignment="Center" HorizontalAlignment="Left" />
+                                    <Path Grid.Column="1" Data="M0,0 L6,6 L12,0" Stroke="{StaticResource TextMuted}"
+                                          StrokeThickness="1.4" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="{StaticResource InputBg}" BorderBrush="{StaticResource InputBorder}"
+                                        BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" MaxHeight="320"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===================== ListBox ===================== -->
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        </Style>
+
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="10,9" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="8">
+                            <Grid Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="AccentBar" Grid.Column="0" Width="3" CornerRadius="2"
+                                        Background="{StaticResource Accent}" Opacity="0" Margin="0,0,10,0" />
+                                <ContentPresenter Grid.Column="1" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBg}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectedBg}" />
+                                <Setter TargetName="AccentBar" Property="Opacity" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PreviewOutlinedText" TargetType="local:OutlinedTextBlock">
+            <Setter Property="FontFamily" Value="{Binding FontFamilyName, Converter={StaticResource FontNameToFontFamily}}" />
+            <Setter Property="FontWeight" Value="{Binding IsBold, Converter={StaticResource BoolToFontWeight}}" />
+            <Setter Property="IsItalic" Value="{Binding IsItalic}" />
+            <Setter Property="IsUnderline" Value="{Binding IsUnderline}" />
+            <Setter Property="Fill" Value="{Binding TextColor, Converter={StaticResource HexToBrush}}" />
+            <Setter Property="BorderEnabled" Value="{Binding BorderEnabled}" />
+            <Setter Property="Stroke" Value="{Binding BorderColor, Converter={StaticResource HexToBrush}}" />
+            <Setter Property="HasShadow" Value="{Binding ShadowEnabled}" />
+            <Setter Property="ShadowColor" Value="{Binding ShadowColor, Converter={StaticResource HexToBrush}}" />
         </Style>
     </Window.Resources>
 
-    <Grid Margin="14">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Top bar: translation + projector screen selection -->
-        <DockPanel Grid.Row="0" Margin="0,0,0,10">
-            <TextBlock Text="Translation:" VerticalAlignment="Center" Margin="0,0,6,0" />
-            <ComboBox Width="220" ItemsSource="{Binding Translations}" SelectedItem="{Binding SelectedTranslation}" DisplayMemberPath="Abbreviation" />
-            <Button Content="Import Bible XML..." Command="{Binding ImportBibleCommand}" DockPanel.Dock="Left" Margin="8,0" />
-            <Button Content="Remove" Command="{Binding RemoveTranslationCommand}" CommandParameter="{Binding SelectedTranslation}" />
+        <!-- ============================= Header ============================= -->
+        <Border Grid.Row="0" Background="{StaticResource HeaderBg}" BorderBrush="{StaticResource CardBorder}"
+                BorderThickness="0,0,0,1" Padding="20,13">
+            <DockPanel LastChildFill="True">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                    <Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource Accent}" Margin="0,0,10,0">
+                        <TextBlock Text="B" FontWeight="Bold" FontSize="15" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Bible Presenter" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
 
-            <TextBlock Text="Projector:" VerticalAlignment="Center" Margin="24,0,6,0" />
-            <ComboBox Width="260" ItemsSource="{Binding Screens}" SelectedItem="{Binding SelectedScreen}"
-                      HorizontalAlignment="Right">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Converter={StaticResource ScreenToLabel}}" />
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-        </DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Translation" Style="{StaticResource FieldLabel}" />
+                    <ComboBox Width="110" ItemsSource="{Binding Translations}" SelectedItem="{Binding SelectedTranslation}"
+                              VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Abbreviation}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Content="Import..." Command="{Binding ImportBibleCommand}" ToolTip="Import Bible XML..." />
+                    <Button Content="Remove" Command="{Binding RemoveTranslationCommand}" CommandParameter="{Binding SelectedTranslation}"
+                            Margin="0,0,16,0" />
 
-        <!-- Search box -->
-        <DockPanel Grid.Row="1" Margin="0,0,0,10">
-            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,6,0" />
-            <TextBox x:Name="SearchBox" FontSize="18" Padding="8,6"
-                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                     Background="#FF2A2C33" Foreground="White" BorderThickness="0"
-                     KeyDown="SearchBox_KeyDown" />
-        </DockPanel>
+                    <Border Width="1" Background="{StaticResource CardBorder}" Margin="0,4,16,4" />
 
-        <!-- Results + preview + media library -->
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*" />
-                <ColumnDefinition Width="10" />
-                <ColumnDefinition Width="1*" />
-            </Grid.ColumnDefinitions>
-
-            <ListBox Grid.Column="0" x:Name="ResultsList"
-                     ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}"
-                     Background="#FF25262C" Foreground="White" BorderThickness="0"
-                     VirtualizingStackPanel.IsVirtualizing="True"
-                     VirtualizingStackPanel.VirtualizationMode="Recycling"
-                     ScrollViewer.CanContentScroll="True"
-                     MouseDoubleClick="ResultsList_MouseDoubleClick">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Margin="6,4">
-                            <TextBlock Text="{Binding Reference}" FontWeight="Bold" Foreground="#FFE0C060" />
-                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                    <Button Command="{Binding OpenSettingsCommand}" ToolTip="Settings" AutomationProperties.Name="Settings" Margin="0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Settings" VerticalAlignment="Center" />
                         </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                    </Button>
+                </StackPanel>
 
-            <!-- Media library sidebar -->
-            <DockPanel Grid.Column="2">
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                    <TextBlock Text="Backgrounds" FontWeight="Bold" VerticalAlignment="Center" />
-                    <Button Content="Import..." Command="{Binding ImportMediaCommand}" HorizontalAlignment="Right" DockPanel.Dock="Right" Margin="0" />
-                </DockPanel>
-                <Button DockPanel.Dock="Bottom" Content="Remove Background" Margin="0,6,0,0"
-                        Command="{Binding RemoveMediaCommand}" CommandParameter="{Binding SelectedBackground}" />
-                <ListBox ItemsSource="{Binding Backgrounds}" SelectedItem="{Binding SelectedBackground}"
-                         Background="#FF25262C" Foreground="White" BorderThickness="0" DisplayMemberPath="Name" />
+                <Border Style="{StaticResource Pill}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="30,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="Search" Style="{StaticResource SegmentToggle}" GroupName="MainMode"
+                                     IsChecked="{Binding IsSetMode, Converter={StaticResource InverseBool}}" />
+                        <RadioButton Content="Sets" Style="{StaticResource SegmentToggle}" GroupName="MainMode"
+                                     IsChecked="{Binding IsSetMode}" />
+                    </StackPanel>
+                </Border>
             </DockPanel>
-        </Grid>
+        </Border>
 
-        <!-- Transport controls -->
-        <DockPanel Grid.Row="3" Margin="0,10,0,0">
-            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Opacity="0.7" DockPanel.Dock="Left" />
-            <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
-                <Button Content="Clear / Black" Command="{Binding ClearCommand}" />
-                <Button Content="Next ▶" Command="{Binding NextVerseCommand}" />
-                <Button Content="◀ Prev" Command="{Binding PrevVerseCommand}" />
-                <Button Content="Go Live" Command="{Binding GoLiveCommand}" Background="#FF3E7D3E" FontWeight="Bold" Padding="20,8" />
+        <!-- ============================= Body ============================= -->
+        <Grid Grid.Row="1" Margin="20,16,20,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Search bar (Search Mode only) -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,16" Visibility="{Binding IsSetMode, Converter={StaticResource InverseBoolToVisibility}}">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <Border Style="{StaticResource Pill}" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Content="Bible" Style="{StaticResource SegmentToggle}" GroupName="SearchScope"
+                                         IsChecked="{Binding IsSongSearch, Converter={StaticResource InverseBool}}" />
+                            <RadioButton Content="Songs" Style="{StaticResource SegmentToggle}" GroupName="SearchScope"
+                                         IsChecked="{Binding IsSongSearch}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Pill}" Visibility="{Binding IsSongSearch, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Content="By Title" Style="{StaticResource SegmentToggle}" GroupName="SongSearchBy"
+                                         IsChecked="{Binding SearchSongsByLyrics, Converter={StaticResource InverseBool}}" />
+                            <RadioButton Content="By Lyrics" Style="{StaticResource SegmentToggle}" GroupName="SongSearchBy"
+                                         IsChecked="{Binding SearchSongsByLyrics}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <Border Background="{StaticResource InputBg}" BorderBrush="{StaticResource InputBorder}" BorderThickness="1" CornerRadius="10">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                   Foreground="{StaticResource TextFaint}" VerticalAlignment="Center" Margin="14,0,0,0" />
+                        <TextBox x:Name="SearchBox" FontSize="16" Padding="10,12" Background="Transparent" BorderThickness="0"
+                                 VerticalContentAlignment="Center"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 KeyDown="SearchBox_KeyDown" />
+                    </DockPanel>
+                </Border>
             </StackPanel>
-        </DockPanel>
+
+            <Grid Grid.Row="1">
+                <!-- Search Mode: results -->
+                <Grid Visibility="{Binding IsSetMode, Converter={StaticResource InverseBoolToVisibility}}">
+                    <Border Style="{StaticResource Card}" Padding="10"
+                            Visibility="{Binding IsSongSearch, Converter={StaticResource InverseBoolToVisibility}}">
+                        <ListBox x:Name="ResultsList"
+                                 ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}"
+                                 VirtualizingStackPanel.IsVirtualizing="True"
+                                 VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                 ScrollViewer.CanContentScroll="True"
+                                 MouseDoubleClick="ResultsList_MouseDoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Reference}" FontWeight="SemiBold" Foreground="{StaticResource Gold}" />
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,2,0,0" Opacity="0.9" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <Grid Visibility="{Binding IsSongSearch, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="1.3*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource Card}" Padding="10">
+                            <ListBox x:Name="SongResultsList"
+                                     ItemsSource="{Binding SongResults}" SelectedItem="{Binding SelectedSongResult}"
+                                     DisplayMemberPath="Title"
+                                     MouseDoubleClick="ResultsList_MouseDoubleClick" />
+                        </Border>
+
+                        <!-- Lyrics preview, so two similarly-titled songs are easy to tell apart before going live. -->
+                        <Border Grid.Column="2" Style="{StaticResource Card}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="PREVIEW" Style="{StaticResource SectionHeader}" />
+                                <TextBlock DockPanel.Dock="Top" Text="{Binding PreviewedSong.Title}" FontWeight="SemiBold"
+                                           FontSize="16" Foreground="{StaticResource Gold}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                                <TextBlock DockPanel.Dock="Top" Text="{Binding PreviewedSong.Subtitle}" Foreground="{StaticResource TextMuted}" Margin="0,0,0,14" />
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding PreviewedSong.Slides}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{StaticResource InputBg}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimary}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- Set Mode: set list (item editing happens in a modal - see EditSetItemDialog) -->
+                <Border Visibility="{Binding IsSetMode, Converter={StaticResource BoolToVisibility}}" Style="{StaticResource Card}">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                            <TextBlock Text="Set" Style="{StaticResource FieldLabel}" />
+                            <ComboBox Width="200" HorizontalAlignment="Left" ItemsSource="{Binding Sets}" SelectedItem="{Binding SelectedSet}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                <Button Content="New" Command="{Binding NewSetCommand}" />
+                                <Button Content="Rename" Command="{Binding RenameSetCommand}" />
+                                <Button Content="Save" Command="{Binding SaveSetCommand}" />
+                                <Button Content="Save As" Command="{Binding SaveSetAsCommand}" />
+                                <Button Content="Delete" Command="{Binding DeleteSetCommand}" Margin="0" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <TextBlock Text="SET ITEMS" Style="{StaticResource SectionHeader}" Margin="0" VerticalAlignment="Center" />
+                            <TextBlock Text="—  Double-click an item to edit it" Foreground="{StaticResource TextFaint}" FontSize="11"
+                                       Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <WrapPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+                            <Button Content="+ Scripture" Command="{Binding AddScriptureItemCommand}" />
+                            <Button Content="+ Song" Command="{Binding AddSongItemCommand}" />
+                            <Button Content="+ Custom" Command="{Binding AddCustomItemCommand}" />
+                            <Button Content="Edit" Click="EditItem_Click" />
+                            <Button Content="Remove" Command="{Binding RemoveSetItemCommand}" />
+                            <Button Content="▲" Command="{Binding MoveItemUpCommand}" Style="{StaticResource IconButton}" />
+                            <Button Content="▼" Command="{Binding MoveItemDownCommand}" Style="{StaticResource IconButton}" Margin="0" />
+                        </WrapPanel>
+
+                        <ListBox ItemsSource="{Binding CurrentSetItems}" SelectedItem="{Binding SelectedSetItem}"
+                                 MouseDoubleClick="SetItemsList_MouseDoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="{StaticResource InputBg}" CornerRadius="5" Padding="7,3" Margin="0,0,10,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Type}" Foreground="{StaticResource Gold}" FontWeight="SemiBold" FontSize="11" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- Transport controls -->
+            <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,16,0,0" Padding="18,14">
+                <DockPanel>
+                    <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{StaticResource TextMuted}"
+                               FontSize="12" DockPanel.Dock="Left" />
+
+                    <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                        <!-- Mini preview: shows what Go Live / Present / Next is about to put on screen, before it's committed. -->
+                        <TextBlock Text="PREVIEW" Style="{StaticResource SectionHeader}" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                        <Border Width="220" Height="124" Background="Black" CornerRadius="8" ClipToBounds="True"
+                                BorderBrush="{StaticResource InputBorder}" BorderThickness="1" Margin="0,0,0,12">
+                            <Grid DataContext="{Binding Preview}">
+                                <Image Stretch="UniformToFill"
+                                       gif:ImageBehavior.AnimatedSource="{Binding CurrentBackground.FilePath, Converter={StaticResource PathToImageSource}}" />
+                                <Viewbox Stretch="Uniform" Margin="4">
+                                    <Grid Width="960" Height="540">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <local:OutlinedTextBlock Grid.Row="0" Text="{Binding TopText}"
+                                                                  Style="{StaticResource PreviewOutlinedText}"
+                                                                  HorizontalAlignment="Center" TextAlignment="Center"
+                                                                  FontSize="{Binding TitleFontSize}" />
+
+                                        <local:OutlinedTextBlock Grid.Row="1" Text="{Binding BodyText}"
+                                                                  Style="{StaticResource PreviewOutlinedText}"
+                                                                  VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                                                  TextAlignment="Left"
+                                                                  FontSize="{Binding BodyFontSize}" />
+
+                                        <local:OutlinedTextBlock Grid.Row="2" Text="{Binding BottomText}"
+                                                                  Style="{StaticResource PreviewOutlinedText}"
+                                                                  HorizontalAlignment="Center" TextAlignment="Center"
+                                                                  FontSize="{Binding SubtitleFontSize}" />
+                                    </Grid>
+                                </Viewbox>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                            <Button Content="Clear / Black" Command="{Binding ClearCommand}" />
+                            <Button Content="Next ▶" Command="{Binding NextVerseCommand}" />
+                            <Button Content="◀ Prev" Command="{Binding PrevVerseCommand}" />
+                            <Button Content="Go Live" Style="{StaticResource AccentButton}" Command="{Binding GoLiveCommand}" Margin="0,0,8,0"
+                                    Visibility="{Binding IsSetMode, Converter={StaticResource InverseBoolToVisibility}}" />
+                            <Button Content="Present" Style="{StaticResource AccentButton}" Command="{Binding PresentSetItemCommand}" Margin="0,0,8,0"
+                                    Visibility="{Binding IsSetMode, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
