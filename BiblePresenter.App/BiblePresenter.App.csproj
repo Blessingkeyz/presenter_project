@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Resources\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,5 +32,14 @@
     <Resource Include="Resources\AppIcon.png" />
     <Resource Include="Resources\AppIcon32.png" />
   </ItemGroup>
+
+  <!-- The app reads the bundled Bible and background from Resources beside the exe. Publish doesn't always
+       carry these XML/JPG content files across, so copy them explicitly after every publish. -->
+  <Target Name="CopyBundledResourcesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <BundledResource Include="Resources\KJV.xml;Resources\Scripture.jpg" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BundledResource)" DestinationFolder="$(PublishDir)Resources" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

@@ -18,3 +18,7 @@ Thumbs.db
 
 # Claude Code session state
 .claude/
+
+# Packaged build output (publish.ps1)
+dist/
+publish/
