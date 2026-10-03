@@ -34,8 +34,21 @@ public sealed class SettingsViewModel : ObservableObject
     {
         _mediaService = mediaService;
         Backgrounds = backgrounds;
-        Scripture = new StyleEditorViewModel(scripture, backgrounds);
-        Song = new StyleEditorViewModel(song, backgrounds);
+        Scripture = new StyleEditorViewModel(scripture, backgrounds)
+        {
+            SlideLengthHint = "characters per slide. A longer verse continues on the next slide, cut at a natural pause.",
+            SampleTitle = "John 3:16",
+            SampleBody = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+            SampleSubtitle = "King James Version"
+        };
+        Song = new StyleEditorViewModel(song, backgrounds)
+        {
+            SlideLengthHint = "characters per slide. A longer stanza is split across slides, cut at a natural pause. The song file is not changed.",
+            BodyAlignment = System.Windows.TextAlignment.Center,
+            SampleTitle = "Amazing Grace",
+            SampleBody = "Amazing grace, how sweet the sound\nThat saved a wretch like me",
+            SampleSubtitle = "John Newton"
+        };
         Screens = screens;
         _selectedScreen = selectedScreen;
 

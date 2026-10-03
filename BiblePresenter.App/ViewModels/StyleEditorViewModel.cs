@@ -1,4 +1,5 @@
 using BiblePresenter.App.Models;
+using BiblePresenter.App.Services;
 
 namespace BiblePresenter.App.ViewModels;
 
@@ -41,6 +42,21 @@ public sealed class StyleEditorViewModel : ObservableObject
     private string _shadowColor;
     public string ShadowColor { get => _shadowColor; set => SetProperty(ref _shadowColor, value); }
 
+    private int _maxSlideChars;
+    /// <summary>Characters before a long verse (Scripture) or stanza (Song) continues on the next slide.</summary>
+    public int MaxSlideChars { get => _maxSlideChars; set => SetProperty(ref _maxSlideChars, value); }
+
+    /// <summary>Explains the length setting under its box, in words that fit this tab's kind of content.</summary>
+    public string SlideLengthHint { get; init; } = "";
+
+    /// <summary>How the sample body sits in the preview, matching what the projector does for this kind of content.</summary>
+    public System.Windows.TextAlignment BodyAlignment { get; init; } = System.Windows.TextAlignment.Left;
+
+    /// <summary>Placeholder text shown in the Settings preview so each tab reads like real content of its own kind.</summary>
+    public string SampleTitle { get; init; } = "Sample Title";
+    public string SampleBody { get; init; } = "Sample body text";
+    public string SampleSubtitle { get; init; } = "Sample subtitle";
+
     private BackgroundMedia? _selectedBackground;
     public BackgroundMedia? SelectedBackground { get => _selectedBackground; set => SetProperty(ref _selectedBackground, value); }
 
@@ -58,6 +74,7 @@ public sealed class StyleEditorViewModel : ObservableObject
         _borderColor = source.BorderColor;
         _shadowEnabled = source.ShadowEnabled;
         _shadowColor = source.ShadowColor;
+        _maxSlideChars = source.MaxSlideChars;
         _selectedBackground = backgrounds.FirstOrDefault(b => b.FilePath == source.BackgroundPath);
     }
 
@@ -75,6 +92,7 @@ public sealed class StyleEditorViewModel : ObservableObject
         BorderColor = BorderColor,
         ShadowEnabled = ShadowEnabled,
         ShadowColor = ShadowColor,
+        MaxSlideChars = Math.Clamp(MaxSlideChars, ScriptureSlideSplitter.MinAllowedSlideChars, ScriptureSlideSplitter.MaxAllowedSlideChars),
         BackgroundPath = SelectedBackground?.FilePath
     };
 }

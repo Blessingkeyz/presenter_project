@@ -28,12 +28,15 @@ public sealed class TextStyle
 
     /// <summary>File path of the selected background image/GIF, or null for none.</summary>
     public string? BackgroundPath { get; set; }
+
+    /// <summary>A verse (Scripture) or a stanza/slide (Song, Custom) longer than this many characters continues on the next slide.</summary>
+    public int MaxSlideChars { get; set; } = 160;
 }
 
 public sealed class PresentationSettings
 {
     public TextStyle Scripture { get; set; } = new();
 
-    /// <summary>Also used for Custom Set items (announcements, etc.) - anything that isn't Scripture.</summary>
-    public TextStyle Song { get; set; } = new();
+    /// <summary>Also used for Custom Set items (announcements, etc.) - anything that isn't Scripture. Songs run longer than verses, so the default is higher.</summary>
+    public TextStyle Song { get; set; } = new() { MaxSlideChars = 300 };
 }

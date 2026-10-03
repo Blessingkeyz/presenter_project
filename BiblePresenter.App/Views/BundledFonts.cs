@@ -34,6 +34,20 @@ public static class BundledFonts
 
     public static IReadOnlyCollection<string> Names => FamilyNames.Value;
 
+    private static readonly Lazy<IReadOnlyList<string>> AllChoices = new(() =>
+    {
+        var bundled = FamilyNames.Value.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+        var system = Fonts.SystemFontFamilies
+            .Select(f => f.Source)
+            .Where(n => !FamilyNames.Value.Contains(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+        return bundled.Concat(system).ToList();
+    });
+
+    /// <summary>Bundled fonts first, then every installed system font - what the Settings font dropdown offers.</summary>
+    public static IReadOnlyList<string> Choices => AllChoices.Value;
+
     public static FontFamily Resolve(string requestedName)
     {
         if (!string.IsNullOrWhiteSpace(requestedName) && FamilyNames.Value.Contains(requestedName))

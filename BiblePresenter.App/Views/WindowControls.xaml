@@ -1,0 +1,12 @@
+<UserControl x:Class="BiblePresenter.App.Views.WindowControls"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Orientation="Horizontal">
+        <Button x:Name="MinimizeButton" Content="&#xE921;" Style="{StaticResource CaptionButton}" Click="Minimize_Click"
+                ToolTip="Minimize" AutomationProperties.Name="Minimize" />
+        <Button x:Name="MaximizeButton" Content="&#xE922;" Style="{StaticResource CaptionButton}" Click="MaximizeRestore_Click"
+                ToolTip="Maximize" AutomationProperties.Name="Maximize" />
+        <Button Content="&#xE8BB;" Style="{StaticResource CaptionCloseButton}" Click="Close_Click"
+                ToolTip="Close" AutomationProperties.Name="Close" />
+    </StackPanel>
+</UserControl>

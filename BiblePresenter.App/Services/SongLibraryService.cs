@@ -29,6 +29,18 @@ public sealed class SongLibraryService
 
     public string Folder => _folder;
 
+    /// <summary>
+    /// Forces both the title and lyrics caches to build right now, instead of lazily on the first
+    /// search. Meant to be called from a background thread during app startup (behind a splash
+    /// screen) so the first "By Lyrics" search a user runs doesn't pay the full-library scan cost
+    /// on the UI thread and freeze the app.
+    /// </summary>
+    public void WarmUp()
+    {
+        ListSongs();
+        _lyricsCache ??= ScanFolderWithLyrics();
+    }
+
     /// <summary>Lists every song in the library (title + file path), skipping files that don't parse as songs.</summary>
     public List<(string Title, string FilePath)> ListSongs()
     {
@@ -60,6 +72,9 @@ public sealed class SongLibraryService
         }
         return null;
     }
+
+    /// <summary>Reads one song file from the library, e.g. for editing it.</summary>
+    public SetItem Load(string path) => _importService.Import(path);
 
     /// <summary>
     /// Searches the library by title (substring) or by lyrics content. Lyrics search reads the
@@ -107,7 +122,7 @@ public sealed class SongLibraryService
     /// </summary>
     public void EnsureResolved(SetItem item)
     {
-        if (item.Type != SetItemType.Song || item.Slides.Count > 0)
+        if (item.Type != SetItemType.Song || item.IsSetOnly || item.Slides.Count > 0)
             return;
 
         var resolved = ResolveByTitle(item.Title);
@@ -115,6 +130,8 @@ public sealed class SongLibraryService
         {
             item.Subtitle = resolved.Subtitle;
             item.Slides = resolved.Slides;
+            item.SlideLabels = resolved.SlideLabels;
+            item.LibraryPath = resolved.LibraryPath;
         }
         else
         {
@@ -134,15 +151,34 @@ public sealed class SongLibraryService
         return destPath;
     }
 
-    /// <summary>Writes (or overwrites) a song's current title/subtitle/slides back into the library as an OpenSong file.</summary>
-    public void SaveToLibrary(SetItem songItem)
+    /// <summary>
+    /// Writes a song to the library as an OpenSong file and returns its path. With
+    /// <paramref name="existingPath"/> the file is overwritten in place (so OpenSong and any other
+    /// app that reads that file see the change); without it a new file is created, named after the title.
+    /// </summary>
+    public string SaveSong(SetItem song, string? existingPath)
     {
-        var fileName = SanitizeFileName(songItem.Title);
-        var path = Path.Combine(_folder, fileName);
-        _importService.Export(songItem, path);
+        if (existingPath is not null)
+        {
+            _importService.SaveInPlace(song, existingPath);
+            _cache = null;
+            _lyricsCache = null;
+            return existingPath;
+        }
+
+        var path = MakeUnique(Path.Combine(_folder, SanitizeFileName(song.Title)));
+        _importService.Export(song, path);
         _cache = null;
         _lyricsCache = null;
+        return path;
     }
+
+    /// <summary>True when saving this song's lyrics into <paramref name="existingPath"/> would drop chord rows or verse numbers from that file.</summary>
+    public bool WouldRewriteChordedLyrics(SetItem song, string? existingPath)
+        => existingPath is not null
+           && File.Exists(existingPath)
+           && _importService.HasChordLayout(existingPath)
+           && !_importService.SameLyrics(_importService.Import(existingPath), song);
 
     private static string MakeUnique(string path)
     {

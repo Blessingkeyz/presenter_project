@@ -1,0 +1,60 @@
+<UserControl x:Class="BiblePresenter.App.Views.ColorSwatchPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Resources/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="SwatchItem" TargetType="ListBoxItem">
+                <Setter Property="Margin" Value="0,0,4,0" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                            <Border x:Name="Ring" Width="28" Height="28" CornerRadius="14" BorderThickness="2"
+                                    BorderBrush="Transparent" Padding="2">
+                                <Border CornerRadius="10" Background="{Binding Converter={StaticResource HexToBrush}}"
+                                        BorderBrush="{StaticResource InputBorder}" BorderThickness="1" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource FadedInk}" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource Candle}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <DockPanel Margin="0,0,0,6">
+            <TextBox x:Name="HexBox" DockPanel.Dock="Right" Width="86" FontFamily="Consolas" FontSize="12"
+                     Padding="8,5" MaxLength="9" CharacterCasing="Upper" VerticalAlignment="Center"
+                     Text="{Binding Color, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" />
+            <ContentPresenter x:Name="HeaderHost" VerticalAlignment="Center"
+                              TextElement.Foreground="{StaticResource FadedInk}" TextElement.FontSize="12" />
+        </DockPanel>
+
+        <ListBox x:Name="Swatches" SelectionChanged="Swatches_SelectionChanged" ItemContainerStyle="{StaticResource SwatchItem}"
+                 HorizontalAlignment="Left">
+            <ListBox.Template>
+                <ControlTemplate TargetType="ListBox">
+                    <ItemsPresenter />
+                </ControlTemplate>
+            </ListBox.Template>
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+        </ListBox>
+    </StackPanel>
+</UserControl>
