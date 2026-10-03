@@ -11,6 +11,8 @@ public partial class OutputWindow : Window
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        // Detach from the view model once closed, so a closed window's fade handler stops listening.
+        Closed += (_, _) => DataContext = null;
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)

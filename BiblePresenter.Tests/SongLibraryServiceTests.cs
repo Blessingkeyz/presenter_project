@@ -24,7 +24,7 @@ public class SongLibraryServiceTests
     }
 
     [Fact]
-    public void SaveToLibrary_ThenListSongs_FindsItByTitle()
+    public void SaveSong_ThenListSongs_FindsItByTitle()
     {
         var dir = TempDir();
         try
@@ -38,7 +38,7 @@ public class SongLibraryServiceTests
                 Slides = { "Amazing grace, how sweet the sound", "That saved a wretch like me" }
             };
 
-            library.SaveToLibrary(song);
+            library.SaveSong(song, null);
             var listed = library.ListSongs();
 
             var entry = Assert.Single(listed);
@@ -64,7 +64,7 @@ public class SongLibraryServiceTests
                 Subtitle = "John Newton",
                 Slides = { "Amazing grace, how sweet the sound", "That saved a wretch like me" }
             };
-            library.SaveToLibrary(song);
+            library.SaveSong(song, null);
 
             var resolved = library.ResolveByTitle("amazing grace");
 
@@ -151,13 +151,13 @@ public class SongLibraryServiceTests
         try
         {
             var library = new SongLibraryService(new SongImportService(), dir);
-            library.SaveToLibrary(new SetItem
+            library.SaveSong(new SetItem
             {
                 Type = SetItemType.Song,
                 Title = "Amazing Grace",
                 Subtitle = "John Newton",
                 Slides = { "Amazing grace, how sweet the sound" }
-            });
+            }, null);
 
             var stub = new SetItem { Type = SetItemType.Song, Title = "Amazing Grace" };
             library.EnsureResolved(stub);
@@ -188,8 +188,8 @@ public class SongLibraryServiceTests
         try
         {
             var library = new SongLibraryService(new SongImportService(), dir);
-            library.SaveToLibrary(new SetItem { Type = SetItemType.Song, Title = "Amazing Grace", Slides = { "How sweet the sound" } });
-            library.SaveToLibrary(new SetItem { Type = SetItemType.Song, Title = "How Great Thou Art", Slides = { "O Lord my God" } });
+            library.SaveSong(new SetItem { Type = SetItemType.Song, Title = "Amazing Grace", Slides = { "How sweet the sound" } }, null);
+            library.SaveSong(new SetItem { Type = SetItemType.Song, Title = "How Great Thou Art", Slides = { "O Lord my God" } }, null);
 
             var byTitle = library.Search("grace", byLyrics: false);
             var titleMatch = Assert.Single(byTitle);
@@ -211,8 +211,8 @@ public class SongLibraryServiceTests
         try
         {
             var library = new SongLibraryService(new SongImportService(), dir);
-            library.SaveToLibrary(new SetItem { Type = SetItemType.Song, Title = "Amazing Grace", Slides = { "How sweet the sound" } });
-            library.SaveToLibrary(new SetItem { Type = SetItemType.Song, Title = "How Great Thou Art", Slides = { "O Lord my God" } });
+            library.SaveSong(new SetItem { Type = SetItemType.Song, Title = "Amazing Grace", Slides = { "How sweet the sound" } }, null);
+            library.SaveSong(new SetItem { Type = SetItemType.Song, Title = "How Great Thou Art", Slides = { "O Lord my God" } }, null);
 
             var byLyrics = library.Search("sweet the sound", byLyrics: true);
 
@@ -232,7 +232,7 @@ public class SongLibraryServiceTests
         try
         {
             var library = new SongLibraryService(new SongImportService(), dir);
-            library.SaveToLibrary(new SetItem { Type = SetItemType.Song, Title = "Amazing Grace", Slides = { "How sweet" } });
+            library.SaveSong(new SetItem { Type = SetItemType.Song, Title = "Amazing Grace", Slides = { "How sweet" } }, null);
 
             Assert.Empty(library.Search("", byLyrics: false));
             Assert.Empty(library.Search("   ", byLyrics: true));

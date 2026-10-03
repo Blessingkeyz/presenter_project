@@ -28,6 +28,8 @@
 
   <ItemGroup>
     <Resource Include="Resources\Fonts\*.ttf" />
+    <Resource Include="Resources\AppIcon.png" />
+    <Resource Include="Resources\AppIcon32.png" />
   </ItemGroup>
 
 </Project>

@@ -7,7 +7,9 @@ public enum SetItemType
 {
     Scripture,
     Song,
-    Custom
+    Custom,
+    /// <summary>A picture shown full screen (an event flyer, say). <see cref="SetItem.Slides"/> holds image file paths rather than text.</summary>
+    Image
 }
 
 /// <summary>
@@ -58,6 +60,39 @@ public sealed class SetItem : INotifyPropertyChanged
         get => _slides;
         set { _slides = value; Raise(); }
     }
+
+    /// <summary>Section tags for a song's slides ("V1", "C", "B"...), parallel to <see cref="Slides"/>. Empty entries are untagged.</summary>
+    private List<string>? _slideLabels;
+    public List<string>? SlideLabels
+    {
+        get => _slideLabels;
+        set { _slideLabels = value; Raise(); }
+    }
+
+    /// <summary>For a song: true when this set holds its own copy of the words (edited "for this set only") instead of referencing the library.</summary>
+    private bool _isSetOnly;
+    public bool IsSetOnly
+    {
+        get => _isSetOnly;
+        set { _isSetOnly = value; Raise(); }
+    }
+
+    /// <summary>File the song was read from in the song library. Not stored in the set file - it's rediscovered by title.</summary>
+    public string? LibraryPath { get; set; }
+
+    public string LabelAt(int index)
+        => SlideLabels is { } labels && index < labels.Count ? labels[index] : "";
+
+    public SetItem Clone() => new()
+    {
+        Type = Type,
+        Title = Title,
+        Subtitle = Subtitle,
+        Slides = new List<string>(Slides),
+        SlideLabels = SlideLabels is null ? null : new List<string>(SlideLabels),
+        IsSetOnly = IsSetOnly,
+        LibraryPath = LibraryPath
+    };
 
     public static string JoinSlides(IEnumerable<string> slides) => string.Join(SlideSeparator, slides);
 

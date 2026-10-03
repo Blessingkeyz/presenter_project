@@ -33,6 +33,28 @@ public sealed class OutputViewModel : ObservableObject
         set => SetProperty(ref _bottomText, value);
     }
 
+    private System.Windows.TextAlignment _bodyAlignment = System.Windows.TextAlignment.Left;
+    /// <summary>How the main text sits: left for scripture, centred for songs and custom slides.</summary>
+    public System.Windows.TextAlignment BodyAlignment
+    {
+        get => _bodyAlignment;
+        set => SetProperty(ref _bodyAlignment, value);
+    }
+
+    private string? _slideImagePath;
+    /// <summary>When set, the output shows this picture full screen (an Image item, e.g. an event flyer) instead of text over a background.</summary>
+    public string? SlideImagePath
+    {
+        get => _slideImagePath;
+        set
+        {
+            if (SetProperty(ref _slideImagePath, value))
+                RaisePropertyChanged(nameof(HasSlideImage));
+        }
+    }
+
+    public bool HasSlideImage => !string.IsNullOrEmpty(_slideImagePath);
+
     private BackgroundMedia? _currentBackground;
     public BackgroundMedia? CurrentBackground
     {
