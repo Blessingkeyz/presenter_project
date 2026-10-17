@@ -209,7 +209,8 @@
         </Setter>
     </Style>
 
-    <!-- The one place color is loud: "this is about to transmit." Go Live / Present only. -->
+    <!-- The one place color is loud: "this is on air, tap to end it." Stop only - Go Live/Present uses AccentButton,
+         since it's always available and shouldn't read as urgent. -->
     <Style x:Key="LiveButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Padding" Value="26,11" />
         <Setter Property="FontWeight" Value="SemiBold" />
@@ -228,6 +229,31 @@
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Drag handle between the content area and the live rail. Invisible at rest - the rail's own 1px
+         border already draws the resting divider line - but gives the mouse a wider (8px) strip to grab,
+         with a soft gold tint on hover/drag so it's discoverable without looking like a seam by default. -->
+    <Style x:Key="ColumnSplitter" TargetType="GridSplitter">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="SizeWE" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Border x:Name="Bd" Background="Transparent">
+                        <Border Width="2" HorizontalAlignment="Center" Background="Transparent" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#33D9A441" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

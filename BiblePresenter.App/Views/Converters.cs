@@ -195,16 +195,20 @@ public sealed class SlidesWithLabelsConverter : IMultiValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>Labels the single Go Live/Present/Stop transport button: [IsSetMode, Output.IsBlank] -> "Go Live" / "Present" / "Stop".</summary>
+/// <summary>
+/// Labels the Go Live/Present button: [IsSetMode, Output.IsBlank] -> "Go Live"/"Present" before anything is on
+/// screen, "Show Verse"/"Show Item" once something is - the button still just sends the current selection live
+/// either way, but the label says "switch to this" instead of implying "start over".
+/// </summary>
 public sealed class LiveButtonLabelConverter : IMultiValueConverter
 {
     public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
     {
         var isSetMode = values.Length > 0 && values[0] is true;
         var isBlank = values.Length > 1 && values[1] is true;
-        if (!isBlank)
-            return "Stop";
-        return isSetMode ? "Present" : "Go Live";
+        if (isBlank)
+            return isSetMode ? "Present" : "Go Live";
+        return isSetMode ? "Show Item" : "Show Verse";
     }
 
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)

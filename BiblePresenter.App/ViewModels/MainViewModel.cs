@@ -300,8 +300,10 @@ public sealed class MainViewModel : ObservableObject
 
     public RelayCommand ImportBibleCommand { get; }
     public RelayCommand GoLiveCommand { get; }
-    public RelayCommand ClearCommand { get; }
-    public RelayCommand ToggleLiveCommand { get; }
+    /// <summary>Closes the projector window outright (see MainWindow's handling of Output.IsBlank). Bound to the Stop button and the Escape key.</summary>
+    public RelayCommand StopCommand { get; }
+    /// <summary>Always presents the current selection, live or not - switching to a different item is one click, not Stop then Go Live.</summary>
+    public RelayCommand GoLiveOrPresentCommand { get; }
     public RelayCommand NextVerseCommand { get; }
     public RelayCommand PrevVerseCommand { get; }
     public RelayCommand OpenSettingsCommand { get; }
@@ -343,8 +345,8 @@ public sealed class MainViewModel : ObservableObject
 
         ImportBibleCommand = new RelayCommand(ImportBible);
         GoLiveCommand = new RelayCommand(GoLive, () => SelectedResult is not null || SelectedSongResult is not null);
-        ClearCommand = new RelayCommand(() => Output.IsBlank = true);
-        ToggleLiveCommand = new RelayCommand(ToggleLive, CanToggleLive);
+        StopCommand = new RelayCommand(() => Output.IsBlank = true, () => !Output.IsBlank);
+        GoLiveOrPresentCommand = new RelayCommand(GoLiveOrPresent, CanGoLiveOrPresent);
         NextVerseCommand = new RelayCommand(() => StepSlide(1));
         PrevVerseCommand = new RelayCommand(() => StepSlide(-1));
         OpenSettingsCommand = new RelayCommand(OpenSettings);
@@ -514,26 +516,15 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The single transport button doubles as Go Live/Present when nothing is on screen and Stop
-    /// when something is - so starting and stopping the projector output is the same obvious
-    /// control instead of a separate, easy-to-miss "Clear / Black" button.
+    /// Go Live/Present always sends the current selection to the projector, live or not, so switching
+    /// to a different item while something is already on screen is one click instead of Stop then
+    /// Go Live again. Stop is its own button/Escape shortcut for actually ending the output.
     /// </summary>
-    private bool CanToggleLive()
+    private bool CanGoLiveOrPresent()
+        => IsSetMode ? SelectedSetItem is not null : SelectedResult is not null || SelectedSongResult is not null;
+
+    private void GoLiveOrPresent()
     {
-        if (!Output.IsBlank)
-            return true;
-
-        return IsSetMode ? SelectedSetItem is not null : SelectedResult is not null || SelectedSongResult is not null;
-    }
-
-    private void ToggleLive()
-    {
-        if (!Output.IsBlank)
-        {
-            Output.IsBlank = true;
-            return;
-        }
-
         if (IsSetMode)
             PresentSetItem(SelectedSetItem);
         else

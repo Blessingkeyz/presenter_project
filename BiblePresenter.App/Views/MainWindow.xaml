@@ -14,6 +14,10 @@
     <Window.Resources>
         <ResourceDictionary Source="pack://application:,,,/Resources/Styles.xaml" />
     </Window.Resources>
+    <!-- Escape stops the projector from anywhere in the window, search box included. -->
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding StopCommand}" />
+    </Window.InputBindings>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -67,8 +71,8 @@
         <!-- ============================= Body ============================= -->
         <Grid Grid.Row="1" Margin="24,18,24,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="176" />
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition x:Name="LiveRailColumn" Width="220" MinWidth="176" MaxWidth="420" />
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0" Margin="0,0,24,0">
@@ -456,9 +460,16 @@
             <Border Grid.Column="1" Background="{StaticResource Panel}" BorderBrush="{StaticResource Border}"
                     BorderThickness="1,0,0,0" Margin="0,0,-24,0" Padding="16,20">
                 <StackPanel VerticalAlignment="Top">
-                    <!-- Mini preview: shows what Go Live / Present / Next is about to put on screen, before it's committed. -->
-                    <Border Height="90" Background="Black" CornerRadius="4" ClipToBounds="True"
-                            BorderBrush="{StaticResource InputBorder}" BorderThickness="1" Margin="0,0,0,16">
+                    <!-- Mini preview: shows what Go Live / Present / Next is about to put on screen, before it's committed.
+                         The whole box - background, text, border and all - is designed at the projector's own 960x540
+                         (16:9) shape and scaled as one unit by this Viewbox, so dragging the rail wider also makes it
+                         taller in proportion, instead of just stretching a fixed-height box sideways. -->
+                    <Viewbox Stretch="Uniform" Margin="0,0,0,16">
+                        <!-- Border/corner/inset values are scaled up ~5x from how they'd read at the box's real
+                             on-screen size, since this whole Border is designed at 960x540 and shrunk by the
+                             Viewbox above - without that, a "1px" border would shrink to a sub-pixel hairline. -->
+                        <Border Width="960" Height="540" Background="Black" CornerRadius="20" ClipToBounds="True"
+                                BorderBrush="{StaticResource InputBorder}" BorderThickness="5">
                         <Grid DataContext="{Binding Preview}">
                             <Image Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
                                    gif:ImageBehavior.AnimatedSource="{Binding CurrentBackground.FilePath, Converter={StaticResource PathToImageSource}}" />
@@ -472,7 +483,7 @@
                                     </LinearGradientBrush>
                                 </Rectangle.Fill>
                             </Rectangle>
-                            <Viewbox Stretch="Uniform" Margin="3">
+                            <Viewbox Stretch="Uniform" Margin="16">
                                 <Grid Width="960" Height="540">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -504,9 +515,13 @@
                                        Source="{Binding SlideImagePath, Converter={StaticResource PathToThumbnail}}" />
                             </Grid>
                         </Grid>
-                    </Border>
+                        </Border>
+                    </Viewbox>
 
-                    <Button Style="{StaticResource LiveButton}" Command="{Binding ToggleLiveCommand}"
+                    <!-- Always sends the current selection live - switching items while something is already on screen is one click, not Stop then Go Live.
+                         The label itself says which: "Go Live"/"Present" before anything's on screen, "Show Verse"/"Show Item" once something is,
+                         so it never reads as "start over" when it's actually "switch to this instead". -->
+                    <Button Style="{StaticResource AccentButton}" Command="{Binding GoLiveOrPresentCommand}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,10">
                         <Button.Content>
                             <MultiBinding Converter="{StaticResource LiveButtonLabel}">
@@ -518,9 +533,16 @@
                     <Button Content="◀ Prev" Command="{Binding PrevVerseCommand}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,10" />
                     <Button Content="Next ▶" Command="{Binding NextVerseCommand}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,10" />
+                    <!-- Last on purpose: the ending action, lowest-frequency click of the four. The loud "on air" red
+                         is lit only while something is actually live. Also Escape (Window.InputBindings). -->
+                    <Button Style="{StaticResource LiveButton}" Command="{Binding StopCommand}" Content="Stop"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0" />
                 </StackPanel>
             </Border>
+
+            <!-- Drag to resize the live rail wider or narrower; dragging left grows it, right shrinks it. -->
+            <GridSplitter Grid.Column="1" Style="{StaticResource ColumnSplitter}" ResizeBehavior="PreviousAndCurrent" />
         </Grid>
     </Grid>
 </Window>
