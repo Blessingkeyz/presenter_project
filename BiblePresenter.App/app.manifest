@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Declares this app "Per Monitor V2" DPI aware, so WPF renders at each display's own real resolution
+  instead of rendering once at the primary monitor's scaling and letting Windows stretch the result
+  to fit other monitors. Without this, a laptop screen and an external projector/TV at different
+  scaling percentages (very common - e.g. a 150% laptop display with a 100% projector) causes Windows
+  to upscale the window's already-rendered bitmap to fit the projector, blurring everything on it,
+  backgrounds most visibly since they carry the most fine detail. Text reads as "good enough" even
+  blurred because of the bold outline this app already draws around it; a photo background does not.
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="1.0.0.0" name="BiblePresenter.App.app" />
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+      <gdiScaling xmlns="http://schemas.microsoft.com/SMI/2017/WindowsSettings">true</gdiScaling>
+    </windowsSettings>
+  </application>
+</assembly>

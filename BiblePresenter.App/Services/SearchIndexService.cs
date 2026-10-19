@@ -19,13 +19,15 @@ public sealed class SearchResult
 public sealed class SearchIndexService
 {
     private static readonly Regex WordSplit = new(@"[^a-zA-Z0-9']+", RegexOptions.Compiled);
+    private static readonly BuiltIndex Empty = new(new List<Verse>(), new(), new(StringComparer.Ordinal), new());
 
     private readonly ReferenceParser _referenceParser;
 
-    private List<Verse> _verses = new();
-    private List<string> _sortedWords = new();
-    private Dictionary<string, List<int>> _postings = new(StringComparer.Ordinal);
-    private Dictionary<(int book, int chapter, int verse), int> _byReference = new();
+    // Keyed by Translation.Id, so switching back to a translation already used this session
+    // reuses its index instead of rebuilding it - building one walks every verse in the whole
+    // Bible, which is cheap once but wasteful to repeat on every switch of the Translation picker.
+    private readonly Dictionary<string, BuiltIndex> _cache = new();
+    private BuiltIndex _active = Empty;
 
     public SearchIndexService(ReferenceParser? referenceParser = null)
     {
@@ -34,14 +36,24 @@ public sealed class SearchIndexService
 
     public void Load(Translation translation)
     {
-        _verses = translation.Verses;
-        _byReference = new Dictionary<(int, int, int), int>(_verses.Count);
+        if (!_cache.TryGetValue(translation.Id, out var built))
+        {
+            built = BuildIndex(translation);
+            _cache[translation.Id] = built;
+        }
+        _active = built;
+    }
+
+    private static BuiltIndex BuildIndex(Translation translation)
+    {
+        var verses = translation.Verses;
+        var byReference = new Dictionary<(int book, int chapter, int verse), int>(verses.Count);
         var postings = new Dictionary<string, List<int>>(StringComparer.Ordinal);
 
-        for (var i = 0; i < _verses.Count; i++)
+        for (var i = 0; i < verses.Count; i++)
         {
-            var verse = _verses[i];
-            _byReference[(verse.BookIndex, verse.Chapter, verse.Number)] = i;
+            var verse = verses[i];
+            byReference[(verse.BookIndex, verse.Chapter, verse.Number)] = i;
 
             foreach (var rawWord in WordSplit.Split(verse.Text))
             {
@@ -57,8 +69,8 @@ public sealed class SearchIndexService
             }
         }
 
-        _postings = postings;
-        _sortedWords = postings.Keys.OrderBy(w => w, StringComparer.Ordinal).ToList();
+        var sortedWords = postings.Keys.OrderBy(w => w, StringComparer.Ordinal).ToList();
+        return new BuiltIndex(verses, byReference, postings, sortedWords);
     }
 
     public SearchResult Search(string query, int maxResults = 200)
@@ -91,14 +103,14 @@ public sealed class SearchIndexService
             var result = new List<Verse>();
             for (var v = v1; v <= v2; v++)
             {
-                if (_byReference.TryGetValue((reference.Book.Index, reference.Chapter, v), out var idx))
-                    result.Add(_verses[idx]);
+                if (_active.ByReference.TryGetValue((reference.Book.Index, reference.Chapter, v), out var idx))
+                    result.Add(_active.Verses[idx]);
             }
             return result;
         }
 
         // Whole-chapter jump: no verse given.
-        return _verses.Where(x => x.BookIndex == reference.Book.Index && x.Chapter == reference.Chapter).ToList();
+        return _active.Verses.Where(x => x.BookIndex == reference.Book.Index && x.Chapter == reference.Chapter).ToList();
     }
 
     private List<Verse> KeywordSearch(string query, int maxResults)
@@ -132,7 +144,7 @@ public sealed class SearchIndexService
         return candidates!
             .OrderBy(i => i)
             .Take(maxResults)
-            .Select(i => _verses[i])
+            .Select(i => _active.Verses[i])
             .ToList();
     }
 
@@ -146,12 +158,12 @@ public sealed class SearchIndexService
     {
         var result = new HashSet<int>();
         var start = LowerBound(prefix);
-        for (var i = start; i < _sortedWords.Count; i++)
+        for (var i = start; i < _active.SortedWords.Count; i++)
         {
-            var word = _sortedWords[i];
+            var word = _active.SortedWords[i];
             if (!word.StartsWith(prefix, StringComparison.Ordinal))
                 break;
-            foreach (var idx in _postings[word])
+            foreach (var idx in _active.Postings[word])
                 result.Add(idx);
         }
         return result;
@@ -172,7 +184,7 @@ public sealed class SearchIndexService
         var maxDistance = word.Length <= 6 ? 1 : 2;
         var bestDistance = maxDistance + 1;
 
-        foreach (var candidate in _sortedWords)
+        foreach (var candidate in _active.SortedWords)
         {
             if (Math.Abs(candidate.Length - word.Length) > maxDistance)
                 continue;
@@ -188,7 +200,7 @@ public sealed class SearchIndexService
             }
             if (distance == bestDistance)
             {
-                foreach (var idx in _postings[candidate])
+                foreach (var idx in _active.Postings[candidate])
                     result.Add(idx);
             }
         }
@@ -229,15 +241,33 @@ public sealed class SearchIndexService
     private int LowerBound(string prefix)
     {
         var lo = 0;
-        var hi = _sortedWords.Count;
+        var hi = _active.SortedWords.Count;
         while (lo < hi)
         {
             var mid = (lo + hi) / 2;
-            if (string.CompareOrdinal(_sortedWords[mid], prefix) < 0)
+            if (string.CompareOrdinal(_active.SortedWords[mid], prefix) < 0)
                 lo = mid + 1;
             else
                 hi = mid;
         }
         return lo;
+    }
+
+    /// <summary>One translation's built search structures - everything SearchIndexService needs to answer a query against it.</summary>
+    private sealed class BuiltIndex
+    {
+        public BuiltIndex(List<Verse> verses, Dictionary<(int book, int chapter, int verse), int> byReference,
+            Dictionary<string, List<int>> postings, List<string> sortedWords)
+        {
+            Verses = verses;
+            ByReference = byReference;
+            Postings = postings;
+            SortedWords = sortedWords;
+        }
+
+        public List<Verse> Verses { get; }
+        public Dictionary<(int book, int chapter, int verse), int> ByReference { get; }
+        public Dictionary<string, List<int>> Postings { get; }
+        public List<string> SortedWords { get; }
     }
 }

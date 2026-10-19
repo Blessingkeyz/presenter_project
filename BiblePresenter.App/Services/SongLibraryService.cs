@@ -35,40 +35,64 @@ public sealed class SongLibraryService
     /// screen) so the first "By Lyrics" search a user runs doesn't pay the full-library scan cost
     /// on the UI thread and freeze the app.
     /// </summary>
-    public void WarmUp()
-    {
-        ListSongs();
-        _lyricsCache ??= ScanFolderWithLyrics();
-    }
+    public void WarmUp() => EnsureScanned();
 
     /// <summary>Lists every song in the library (title + file path), skipping files that don't parse as songs.</summary>
     public List<(string Title, string FilePath)> ListSongs()
     {
-        _cache ??= ScanFolder();
-        return _cache;
+        EnsureScanned();
+        return _cache!;
     }
 
-    private List<(string Title, string FilePath)> ScanFolder()
+    /// <summary>
+    /// Scans the folder once, reading each file's title and lyrics together - both come from the same XML
+    /// parse, so reading them separately (as this used to, in two full passes) parsed every file twice for
+    /// no reason. This alone roughly halves the scan's work.
+    ///
+    /// Tried and reverted: running this scan in parallel (PLINQ's AsParallel). It measured ~4x slower on a
+    /// ~2,800-file library, not faster - these files are small (parsing each takes well under a millisecond
+    /// of real work), so PLINQ's own per-item scheduling and result-aggregation overhead outweighs anything
+    /// splitting the work across cores could save. Parallelism pays off for a handful of expensive items,
+    /// not thousands of cheap ones. Don't re-add it without measuring on a real large library first.
+    /// </summary>
+    private void EnsureScanned()
     {
-        var result = new List<(string Title, string FilePath)>();
+        if (_lyricsCache is not null)
+            return;
+
+        var scanned = new List<(string Title, string FilePath, string Lyrics)>();
         foreach (var file in Directory.EnumerateFiles(_folder))
         {
-            var title = _importService.PeekTitle(file);
-            if (title is not null)
-                result.Add((title, file));
+            if (_importService.PeekTitleAndLyrics(file) is { } peek)
+                scanned.Add((peek.Title, file, peek.Lyrics));
         }
 
-        result.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
-        return result;
+        _lyricsCache = scanned;
+        _cache = scanned
+            .Select(s => (s.Title, s.FilePath))
+            .OrderBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
-    /// <summary>Finds a song in the library by title (case-insensitive) and imports it, or null if not found.</summary>
+    /// <summary>
+    /// Finds a song in the library by title (case-insensitive) and imports it, or null if not found - or if it
+    /// was deleted or corrupted after the tolerant title/lyrics scan found it but before this full import ran.
+    /// </summary>
     public SetItem? ResolveByTitle(string title)
     {
         foreach (var (songTitle, path) in ListSongs())
         {
-            if (string.Equals(songTitle, title, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(songTitle, title, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            try
+            {
                 return _importService.Import(path);
+            }
+            catch (BibleImportException)
+            {
+                return null;
+            }
         }
         return null;
     }
@@ -86,32 +110,21 @@ public sealed class SongLibraryService
         if (string.IsNullOrWhiteSpace(query))
             return new List<SongSearchResult>();
 
+        EnsureScanned();
+
         if (!byLyrics)
         {
-            return ListSongs()
+            return _cache!
                 .Where(s => s.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
                 .Select(s => new SongSearchResult { Title = s.Title, FilePath = s.FilePath })
                 .ToList();
         }
 
-        _lyricsCache ??= ScanFolderWithLyrics();
-        return _lyricsCache
+        return _lyricsCache!
             .Where(s => s.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
                         || s.Lyrics.Contains(query, StringComparison.OrdinalIgnoreCase))
             .Select(s => new SongSearchResult { Title = s.Title, FilePath = s.FilePath })
             .ToList();
-    }
-
-    private List<(string Title, string FilePath, string Lyrics)> ScanFolderWithLyrics()
-    {
-        var result = new List<(string, string, string)>();
-        foreach (var file in Directory.EnumerateFiles(_folder))
-        {
-            var peek = _importService.PeekTitleAndLyrics(file);
-            if (peek is { } p)
-                result.Add((p.Title, file, p.Lyrics));
-        }
-        return result;
     }
 
     /// <summary>
@@ -146,8 +159,7 @@ public sealed class SongLibraryService
         var destPath = Path.Combine(_folder, destFileName);
         destPath = MakeUnique(destPath);
         File.Copy(sourceFilePath, destPath);
-        _cache = null;
-        _lyricsCache = null;
+        InvalidateCache();
         return destPath;
     }
 
@@ -161,16 +173,21 @@ public sealed class SongLibraryService
         if (existingPath is not null)
         {
             _importService.SaveInPlace(song, existingPath);
-            _cache = null;
-            _lyricsCache = null;
+            InvalidateCache();
             return existingPath;
         }
 
         var path = MakeUnique(Path.Combine(_folder, SanitizeFileName(song.Title)));
         _importService.Export(song, path);
+        InvalidateCache();
+        return path;
+    }
+
+    /// <summary>Both caches are always (re)built together in <see cref="EnsureScanned"/>, so they're always invalidated together too.</summary>
+    private void InvalidateCache()
+    {
         _cache = null;
         _lyricsCache = null;
-        return path;
     }
 
     /// <summary>True when saving this song's lyrics into <paramref name="existingPath"/> would drop chord rows or verse numbers from that file.</summary>

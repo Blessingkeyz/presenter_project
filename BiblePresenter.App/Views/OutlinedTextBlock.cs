@@ -49,6 +49,26 @@ public sealed class OutlinedTextBlock : FrameworkElement
         nameof(BorderEnabled), typeof(bool), typeof(OutlinedTextBlock),
         new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    /// <summary>Outline half-width as a percentage of the rendered text size - see TextStyle.BorderSize.</summary>
+    public static readonly DependencyProperty BorderSizeProperty = DependencyProperty.Register(
+        nameof(BorderSize), typeof(double), typeof(OutlinedTextBlock),
+        new FrameworkPropertyMetadata(1.5, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>How far the shadow sits from the letter, as a percentage of the rendered text size - see TextStyle.ShadowDistance.</summary>
+    public static readonly DependencyProperty ShadowDistanceProperty = DependencyProperty.Register(
+        nameof(ShadowDistance), typeof(double), typeof(OutlinedTextBlock),
+        new FrameworkPropertyMetadata(4.0, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>Direction the shadow falls in, in degrees (0 = right, 90 = straight down) - see TextStyle.ShadowAngle.</summary>
+    public static readonly DependencyProperty ShadowAngleProperty = DependencyProperty.Register(
+        nameof(ShadowAngle), typeof(double), typeof(OutlinedTextBlock),
+        new FrameworkPropertyMetadata(45.0, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>Extra stroke added to the shadow silhouette, as a percentage of the rendered text size - see TextStyle.ShadowThickness. 0 leaves the shadow as thick as the letters themselves.</summary>
+    public static readonly DependencyProperty ShadowThicknessProperty = DependencyProperty.Register(
+        nameof(ShadowThickness), typeof(double), typeof(OutlinedTextBlock),
+        new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
+
     public static readonly DependencyProperty IsItalicProperty = DependencyProperty.Register(
         nameof(IsItalic), typeof(bool), typeof(OutlinedTextBlock),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
@@ -78,6 +98,16 @@ public sealed class OutlinedTextBlock : FrameworkElement
         nameof(TextAlignment), typeof(TextAlignment), typeof(OutlinedTextBlock),
         new FrameworkPropertyMetadata(TextAlignment.Left, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
 
+    /// <summary>Appended right after Text, on the same line, rendered at SecondaryFontSize instead of FontSize - e.g. a translation abbreviation after a scripture reference.</summary>
+    public static readonly DependencyProperty SecondaryTextProperty = DependencyProperty.Register(
+        nameof(SecondaryText), typeof(string), typeof(OutlinedTextBlock),
+        new FrameworkPropertyMetadata(string.Empty, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>Font size for SecondaryText. NaN (the default) renders it at the same FontSize as the rest of the line.</summary>
+    public static readonly DependencyProperty SecondaryFontSizeProperty = DependencyProperty.Register(
+        nameof(SecondaryFontSize), typeof(double), typeof(OutlinedTextBlock),
+        new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
     public string Text { get => (string)GetValue(TextProperty); set => SetValue(TextProperty, value); }
     public Brush Fill { get => (Brush)GetValue(FillProperty); set => SetValue(FillProperty, value); }
     public Brush Stroke { get => (Brush)GetValue(StrokeProperty); set => SetValue(StrokeProperty, value); }
@@ -85,6 +115,10 @@ public sealed class OutlinedTextBlock : FrameworkElement
     public bool HasShadow { get => (bool)GetValue(HasShadowProperty); set => SetValue(HasShadowProperty, value); }
     public Brush ShadowColor { get => (Brush)GetValue(ShadowColorProperty); set => SetValue(ShadowColorProperty, value); }
     public bool BorderEnabled { get => (bool)GetValue(BorderEnabledProperty); set => SetValue(BorderEnabledProperty, value); }
+    public double BorderSize { get => (double)GetValue(BorderSizeProperty); set => SetValue(BorderSizeProperty, value); }
+    public double ShadowDistance { get => (double)GetValue(ShadowDistanceProperty); set => SetValue(ShadowDistanceProperty, value); }
+    public double ShadowAngle { get => (double)GetValue(ShadowAngleProperty); set => SetValue(ShadowAngleProperty, value); }
+    public double ShadowThickness { get => (double)GetValue(ShadowThicknessProperty); set => SetValue(ShadowThicknessProperty, value); }
     public bool IsItalic { get => (bool)GetValue(IsItalicProperty); set => SetValue(IsItalicProperty, value); }
     public bool IsUnderline { get => (bool)GetValue(IsUnderlineProperty); set => SetValue(IsUnderlineProperty, value); }
     public bool FitToHeight { get => (bool)GetValue(FitToHeightProperty); set => SetValue(FitToHeightProperty, value); }
@@ -94,18 +128,14 @@ public sealed class OutlinedTextBlock : FrameworkElement
     public double FontSize { get => (double)GetValue(FontSizeProperty); set => SetValue(FontSizeProperty, value); }
     public FontWeight FontWeight { get => (FontWeight)GetValue(FontWeightProperty); set => SetValue(FontWeightProperty, value); }
     public TextAlignment TextAlignment { get => (TextAlignment)GetValue(TextAlignmentProperty); set => SetValue(TextAlignmentProperty, value); }
-
-    /// <summary>
-    /// Outline half-width as a fraction of the text as it is actually drawn. Tying it to the rendered size
-    /// (not the requested one) keeps the outline in proportion: a big body size that is fitted down doesn't
-    /// get a heavy edge, and small text doesn't get one either. 1% of the size gives 0.6 at a 60pt body.
-    /// A soft gradient scrim sits behind the text in the output/preview panels and carries most of the contrast.
-    /// </summary>
-    private const double AutoStrokeFraction = 0.010;
+    public string SecondaryText { get => (string)GetValue(SecondaryTextProperty); set => SetValue(SecondaryTextProperty, value); }
+    public double SecondaryFontSize { get => (double)GetValue(SecondaryFontSizeProperty); set => SetValue(SecondaryFontSizeProperty, value); }
 
     /// <summary>
     /// The outline half-width used at a given fit scale: the explicit StrokeThickness if set, otherwise
-    /// <see cref="AutoStrokeFraction"/> of the rendered font size.
+    /// <see cref="BorderSize"/> percent of the rendered font size. Tying it to the rendered size (not the
+    /// requested one) keeps the outline in proportion: a big body size that is fitted down doesn't get a
+    /// heavy edge, and small text doesn't get one either.
     /// </summary>
     private double StrokeFor(double scale)
     {
@@ -113,7 +143,7 @@ public sealed class OutlinedTextBlock : FrameworkElement
         if (!double.IsNaN(explicitValue))
             return explicitValue;
 
-        return Math.Max(0.05, FontSize * scale * AutoStrokeFraction);
+        return Math.Max(0.05, FontSize * scale * (BorderSize / 100.0));
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -141,8 +171,14 @@ public sealed class OutlinedTextBlock : FrameworkElement
 
         if (HasShadow)
         {
-            drawingContext.PushTransform(new TranslateTransform(3, 3));
-            drawingContext.DrawGeometry(TintedShadowBrush(), null, geometry);
+            var distance = Math.Max(0, FontSize * _fitScale * (ShadowDistance / 100.0));
+            var radians = ShadowAngle * Math.PI / 180.0;
+            var dx = distance * Math.Cos(radians);
+            var dy = distance * Math.Sin(radians);
+            var shadowStroke = Math.Max(0, FontSize * _fitScale * (ShadowThickness / 100.0));
+            var shadowPen = shadowStroke > 0 ? new Pen(TintedShadowBrush(), shadowStroke * 2) { LineJoin = PenLineJoin.Round } : null;
+            drawingContext.PushTransform(new TranslateTransform(dx, dy));
+            drawingContext.DrawGeometry(TintedShadowBrush(), shadowPen, geometry);
             drawingContext.Pop();
         }
 
@@ -150,12 +186,17 @@ public sealed class OutlinedTextBlock : FrameworkElement
         drawingContext.DrawGeometry(Fill, pen, geometry);
     }
 
+    /// <summary>
+    /// Nearly solid now (was 150/255, ~59%), to match OpenSong's own stamped-down, near-opaque shadow rather
+    /// than a soft, translucent one - fully opaque would hide the outline/fill seam between the shadow and
+    /// the letter where they overlap, so this stays just short of that.
+    /// </summary>
     private Brush TintedShadowBrush()
     {
         if (ShadowColor is SolidColorBrush solid)
         {
             var c = solid.Color;
-            return new SolidColorBrush(Color.FromArgb(150, c.R, c.G, c.B));
+            return new SolidColorBrush(Color.FromArgb(235, c.R, c.G, c.B));
         }
         return ShadowColor;
     }
@@ -194,8 +235,10 @@ public sealed class OutlinedTextBlock : FrameworkElement
         var style = IsItalic ? FontStyles.Italic : FontStyles.Normal;
         var typeface = new Typeface(FontFamily, style, FontWeight, FontStretches.Normal);
         var size = FontSize * scale;
+        var hasSecondary = !string.IsNullOrEmpty(SecondaryText);
+        var combinedText = hasSecondary ? Text + SecondaryText : Text;
         var ft = new FormattedText(
-            Text,
+            combinedText,
             CultureInfo.CurrentUICulture,
             System.Windows.FlowDirection.LeftToRight,
             typeface,
@@ -209,6 +252,10 @@ public sealed class OutlinedTextBlock : FrameworkElement
 
         if (IsUnderline)
             ft.SetTextDecorations(TextDecorations.Underline);
+
+        // Renders e.g. a translation abbreviation smaller than the reference it follows, on the same line.
+        if (hasSecondary && !double.IsNaN(SecondaryFontSize))
+            ft.SetFontSize(SecondaryFontSize * scale, Text.Length, SecondaryText.Length);
 
         var pad = StrokeFor(scale) * 2 + 6;
         if (!double.IsInfinity(maxWidth) && maxWidth > pad)

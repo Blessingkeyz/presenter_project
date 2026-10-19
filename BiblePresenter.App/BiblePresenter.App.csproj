@@ -8,6 +8,15 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Resources\AppIcon.ico</ApplicationIcon>
+    <!-- Per-Monitor-V2 DPI aware (see app.manifest) - without this, the projector output blurs whenever
+         it's on a display with different scaling than the primary monitor (e.g. a laptop screen at 150%
+         and a projector at 100%, a very common real combination). -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The WinForms analyzer suggests ApplicationHighDpiMode instead of a manifest - that's the right
+         call for a pure WinForms app, but it works through a WinForms-only Application.SetHighDpiMode()
+         startup call this app (WPF-driven; WinForms is used only for Screen enumeration) never makes.
+         The manifest is Microsoft's own documented way to declare DPI awareness for WPF specifically. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

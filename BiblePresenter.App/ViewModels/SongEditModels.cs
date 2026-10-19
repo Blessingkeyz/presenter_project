@@ -32,8 +32,12 @@ public enum SongEditChoice
 
 public sealed record SongEditResult(SongEditChoice Choice, SetItem Song);
 
-/// <summary>One slide of a song with its section tag ("V1", "C"...), for showing lyrics with their labels.</summary>
-public sealed record SongSlideView(string Label, string Text);
+/// <summary>
+/// One slide of a song with its section tag ("V1", "C"...), for showing lyrics with their labels. Index is its
+/// position among the item's sections (not its position once presentation splits a long section further),
+/// used to jump the live output straight to this section when it's clicked.
+/// </summary>
+public sealed record SongSlideView(string Label, string Text, int Index);
 
 /// <summary>One section of a song (a verse, chorus, bridge...) as edited in the song editor.</summary>
 public sealed class SongSection : ObservableObject

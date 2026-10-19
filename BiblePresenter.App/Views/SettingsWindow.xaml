@@ -96,8 +96,12 @@
                 <Setter Property="Fill" Value="{Binding TextColor, Converter={StaticResource HexToBrush}}" />
                 <Setter Property="BorderEnabled" Value="{Binding BorderEnabled}" />
                 <Setter Property="Stroke" Value="{Binding BorderColor, Converter={StaticResource HexToBrush}}" />
+                <Setter Property="BorderSize" Value="{Binding BorderSize}" />
                 <Setter Property="HasShadow" Value="{Binding ShadowEnabled}" />
                 <Setter Property="ShadowColor" Value="{Binding ShadowColor, Converter={StaticResource HexToBrush}}" />
+                <Setter Property="ShadowDistance" Value="{Binding ShadowDistance}" />
+                <Setter Property="ShadowAngle" Value="{Binding ShadowAngle}" />
+                <Setter Property="ShadowThickness" Value="{Binding ShadowThickness}" />
             </Style>
 
             <!-- One editor, reused for both the Scripture and Song/Slide tabs. -->
@@ -152,7 +156,7 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="4">
                                     <TextBox TextAlignment="Center" Text="{Binding SubtitleFontSize, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="Subtitle" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                    <TextBlock Text="{Binding SubtitleFieldLabel}" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,5,0,0" />
                                 </StackPanel>
                             </Grid>
 
@@ -173,19 +177,57 @@
 
                             <local:ColorSwatchPicker Header="Text" Color="{Binding TextColor, Mode=TwoWay}" Margin="0,0,0,14" />
 
-                            <local:ColorSwatchPicker Color="{Binding BorderColor, Mode=TwoWay}" IsActive="{Binding BorderEnabled}" Margin="0,0,0,14">
+                            <local:ColorSwatchPicker Color="{Binding BorderColor, Mode=TwoWay}" IsActive="{Binding BorderEnabled}" Margin="0,0,0,10">
                                 <local:ColorSwatchPicker.Header>
                                     <CheckBox Content="Border" IsChecked="{Binding BorderEnabled}" Margin="0"
                                               Foreground="{StaticResource FadedInk}" FontSize="12" />
                                 </local:ColorSwatchPicker.Header>
                             </local:ColorSwatchPicker>
 
-                            <local:ColorSwatchPicker Color="{Binding ShadowColor, Mode=TwoWay}" IsActive="{Binding ShadowEnabled}">
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="76" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBox TextAlignment="Center" ToolTip="Outline thickness, as a percent of the text size (0 to 10)"
+                                             Text="{Binding BorderSize, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock Text="Thickness" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                            </Grid>
+
+                            <local:ColorSwatchPicker Color="{Binding ShadowColor, Mode=TwoWay}" IsActive="{Binding ShadowEnabled}" Margin="0,0,0,10">
                                 <local:ColorSwatchPicker.Header>
                                     <CheckBox Content="Shadow" IsChecked="{Binding ShadowEnabled}" Margin="0"
                                               Foreground="{StaticResource FadedInk}" FontSize="12" />
                                 </local:ColorSwatchPicker.Header>
                             </local:ColorSwatchPicker>
+
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="76" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="76" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="76" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBox TextAlignment="Center" ToolTip="How far the shadow sits from the letter, as a percent of the text size (0 to 20)"
+                                             Text="{Binding ShadowDistance, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock Text="Distance" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBox TextAlignment="Center" ToolTip="Direction the shadow falls in degrees (0 = right, 90 = straight down, 45 = classic down-right)"
+                                             Text="{Binding ShadowAngle, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock Text="Angle °" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBox TextAlignment="Center" ToolTip="How bold the shadow silhouette is, as a percent of the text size (0 to 10). 0 leaves it as thick as the letters themselves"
+                                             Text="{Binding ShadowThickness, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock Text="Thickness" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </ScrollViewer>
 
@@ -197,16 +239,7 @@
                                 <Grid Width="960" Height="540">
                                     <Image Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
                                            gif:ImageBehavior.AnimatedSource="{Binding SelectedBackground.FilePath, Converter={StaticResource PathToImageSource}}" />
-                                    <Rectangle>
-                                        <Rectangle.Fill>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                <GradientStop Color="#00000000" Offset="0.0" />
-                                                <GradientStop Color="#00000000" Offset="0.25" />
-                                                <GradientStop Color="#8F000000" Offset="0.55" />
-                                                <GradientStop Color="#CC000000" Offset="1.0" />
-                                            </LinearGradientBrush>
-                                        </Rectangle.Fill>
-                                    </Rectangle>
+                                    <!-- No dark scrim: matches the projector, which relies on the outlined text's own contrast. -->
                                     <Grid Margin="60,36">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
@@ -214,6 +247,8 @@
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
                                         <local:OutlinedTextBlock Grid.Row="0" Style="{StaticResource StageText}" Text="{Binding SampleTitle}"
+                                                                  SecondaryText="{Binding SampleTitleSecondary}"
+                                                                  SecondaryFontSize="{Binding SubtitleFontSize}"
                                                                   HorizontalAlignment="Center" TextAlignment="Center"
                                                                   FontSize="{Binding TitleFontSize}" />
                                         <local:OutlinedTextBlock Grid.Row="1" Style="{StaticResource StageText}" Text="{Binding SampleBody}" FitToHeight="True"
