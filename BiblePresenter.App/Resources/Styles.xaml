@@ -24,6 +24,7 @@
     <local:PathToThumbnailConverter x:Key="PathToThumbnail" />
     <local:LiveButtonLabelConverter x:Key="LiveButtonLabel" />
     <local:SlidesWithLabelsConverter x:Key="SlidesWithLabels" />
+    <local:IndexEqualsConverter x:Key="IndexEquals" />
     <local:SearchEmptyStateVisibilityConverter x:Key="SearchEmptyStateVisibility" />
     <local:SearchEmptyStateMessageConverter x:Key="SearchEmptyStateMessage" />
 
@@ -157,6 +158,44 @@
         </Setter>
     </Style>
 
+    <!-- The top "run the whole set" control: starts it from the top when idle, and becomes the way to end it
+         once running, so there's one obvious button for the whole service instead of a separate Stop to hunt
+         for - gold/dark-ink to match "Present", red/light to match "on air, tap to end it" once running. -->
+    <Style x:Key="PresentSetButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Padding" Value="22,10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Background" Value="{StaticResource Candle}" />
+        <Setter Property="Foreground" Value="#FF1C1815" />
+        <Setter Property="Content" Value="Present Set" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.88" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsSetRunning}" Value="True">
+                <Setter Property="Background" Value="{StaticResource Live}" />
+                <Setter Property="Foreground" Value="{StaticResource Parchment}" />
+                <Setter Property="Content" Value="End Presentation" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Confirms something destructive (Remove) - a warm brick, kept apart from the on-air red below. -->
     <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Padding" Value="22,10" />
@@ -259,6 +298,54 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- A slide/section card that's also a click-to-jump trigger: looks like a plain card at rest, highlights
+         on hover, and dims (and stops accepting clicks) when the song/item it belongs to isn't the one live -
+         clicking it then would be a no-op anyway, so it shouldn't look clickable either. -->
+    <Style x:Key="SlideCardButton" TargetType="Button">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{StaticResource InputBg}" CornerRadius="6" Padding="12"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBg}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.55" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A SlideCardButton that also shows a red "on air" edge on whichever one card is live right now - compares
+         its own Index against MainViewModel.LiveSectionIndex, which is -1 whenever this isn't the live item. -->
+    <Style x:Key="LiveAwareSlideCardButton" TargetType="Button" BasedOn="{StaticResource SlideCardButton}">
+        <Style.Triggers>
+            <DataTrigger Value="True">
+                <DataTrigger.Binding>
+                    <MultiBinding Converter="{StaticResource IndexEquals}">
+                        <Binding Path="Index" />
+                        <Binding Path="DataContext.LiveSectionIndex" RelativeSource="{RelativeSource AncestorType=Window}" />
+                    </MultiBinding>
+                </DataTrigger.Binding>
+                <Setter Property="BorderBrush" Value="{StaticResource Live}" />
+                <Setter Property="BorderThickness" Value="3,0,0,0" />
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ===================== Segmented toggle (RadioButton) ===================== -->
@@ -849,8 +936,12 @@
         <Setter Property="Fill" Value="{Binding TextColor, Converter={StaticResource HexToBrush}}" />
         <Setter Property="BorderEnabled" Value="{Binding BorderEnabled}" />
         <Setter Property="Stroke" Value="{Binding BorderColor, Converter={StaticResource HexToBrush}}" />
+        <Setter Property="BorderSize" Value="{Binding BorderSize}" />
         <Setter Property="HasShadow" Value="{Binding ShadowEnabled}" />
         <Setter Property="ShadowColor" Value="{Binding ShadowColor, Converter={StaticResource HexToBrush}}" />
+        <Setter Property="ShadowDistance" Value="{Binding ShadowDistance}" />
+        <Setter Property="ShadowAngle" Value="{Binding ShadowAngle}" />
+        <Setter Property="ShadowThickness" Value="{Binding ShadowThickness}" />
     </Style>
 
 </ResourceDictionary>

@@ -17,6 +17,14 @@ public sealed class OutputViewModel : ObservableObject
         set => SetProperty(ref _topText, value);
     }
 
+    private string _topSecondaryText = "";
+    /// <summary>Appended after the top line at SubtitleFontSize instead of its own row - Scripture's translation abbreviation, e.g. " (KJV)". Empty for Song/Custom, which keep the translation/author on its own BottomText row.</summary>
+    public string TopSecondaryText
+    {
+        get => _topSecondaryText;
+        set => SetProperty(ref _topSecondaryText, value);
+    }
+
     private string _bodyText = "";
     /// <summary>Main text: verse body, song slide lyrics, or custom slide body.</summary>
     public string BodyText
@@ -142,6 +150,14 @@ public sealed class OutputViewModel : ObservableObject
         set => SetProperty(ref _borderColor, value);
     }
 
+    private double _borderSize = 1.5;
+    /// <summary>Outline half-width as a percentage of the rendered text size.</summary>
+    public double BorderSize
+    {
+        get => _borderSize;
+        set => SetProperty(ref _borderSize, value);
+    }
+
     private bool _shadowEnabled = true;
     public bool ShadowEnabled
     {
@@ -154,5 +170,29 @@ public sealed class OutputViewModel : ObservableObject
     {
         get => _shadowColor;
         set => SetProperty(ref _shadowColor, value);
+    }
+
+    private double _shadowDistance = 4;
+    /// <summary>How far the shadow sits from the letter, as a percentage of the rendered text size.</summary>
+    public double ShadowDistance
+    {
+        get => _shadowDistance;
+        set => SetProperty(ref _shadowDistance, value);
+    }
+
+    private double _shadowAngle = 45;
+    /// <summary>Direction the shadow falls in, in degrees (0 = right, 90 = straight down).</summary>
+    public double ShadowAngle
+    {
+        get => _shadowAngle;
+        set => SetProperty(ref _shadowAngle, value);
+    }
+
+    private double _shadowThickness;
+    /// <summary>Extra stroke added to the shadow silhouette, as a percentage of the rendered text size.</summary>
+    public double ShadowThickness
+    {
+        get => _shadowThickness;
+        set => SetProperty(ref _shadowThickness, value);
     }
 }

@@ -96,6 +96,7 @@ public sealed class MainViewModel : ObservableObject
                 PreviewedSong = value is null ? null : _songLibrary.ResolveByTitle(value.Title);
                 if (PreviewedSong is not null)
                     UpdatePreviewForSetItem(PreviewedSong);
+                RefreshLiveState();
             }
         }
     }
@@ -252,19 +253,35 @@ public sealed class MainViewModel : ObservableObject
             {
                 _songLibrary.EnsureResolved(value);
                 UpdatePreviewForSetItem(value);
+
+                // Once the set is already running (Present Set, or presenting any one item directly), picking
+                // a different item jumps straight to it live - no separate Present click per item while running
+                // through a service. Checked fresh each time, not a sticky "mode", so it turns itself off the
+                // moment nothing's live any more (Stop clears _activeItem - see the Output.IsBlank handler).
+                if (IsAnyCurrentSetItemLive())
+                    PresentSetItem(value);
             }
             else
             {
                 Preview.IsBlank = true;
             }
+            RefreshLiveState();
         }
     }
+
+    /// <summary>True when the item currently live belongs to the set shown right now - i.e. the set is "running".</summary>
+    private bool IsAnyCurrentSetItemLive()
+        => !Output.IsBlank && _activeItem is not null && CurrentSetItems.Contains(_activeItem);
 
     private bool _isSetMode;
     public bool IsSetMode
     {
         get => _isSetMode;
-        set => SetProperty(ref _isSetMode, value);
+        set
+        {
+            if (SetProperty(ref _isSetMode, value))
+                RefreshLiveState();
+        }
     }
 
     private SearchResult? _lastSearchResult;
@@ -298,6 +315,15 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Which style is currently applied to the live output, so re-opening Settings and clicking OK can refresh it immediately.</summary>
     private SetItemType? _liveStyleType;
 
+    /// <summary>
+    /// The verse/song/item that was selected the last time Go Live/Present actually ran, so the button can
+    /// grey out when the current selection is already on screen - nothing to click. Compared by reference
+    /// (Verse, SetItem and SongSearchResult are all plain classes with no value equality), which is right
+    /// for "is this literally the same row", and is left null once nothing is live (Stop, Escape, or
+    /// closing the projector window), so any selection re-enables the button.
+    /// </summary>
+    private object? _lastPresentedSelection;
+
     public RelayCommand ImportBibleCommand { get; }
     public RelayCommand GoLiveCommand { get; }
     /// <summary>Closes the projector window outright (see MainWindow's handling of Output.IsBlank). Bound to the Stop button and the Escape key.</summary>
@@ -306,6 +332,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand GoLiveOrPresentCommand { get; }
     public RelayCommand NextVerseCommand { get; }
     public RelayCommand PrevVerseCommand { get; }
+    /// <summary>Jumps straight to one slide card of whatever's live, instead of stepping Next/Prev one at a time. Parameter is the section's index.</summary>
+    public RelayCommand JumpToSlideCommand { get; }
     public RelayCommand OpenSettingsCommand { get; }
 
     public RelayCommand ShowSearchModeCommand { get; }
@@ -321,6 +349,8 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Takes the item to remove as its parameter and asks for confirmation first.</summary>
     public RelayCommand RemoveSetItemCommand { get; }
     public RelayCommand PresentSetItemCommand { get; }
+    /// <summary>Starts the set live from its first item. After this (or presenting any one item directly), picking a different item in the list jumps straight to it until Stop.</summary>
+    public RelayCommand PresentSetCommand { get; }
     public RelayCommand NewSongCommand { get; }
     public RelayCommand EditPreviewedSongCommand { get; }
 
@@ -347,8 +377,30 @@ public sealed class MainViewModel : ObservableObject
         GoLiveCommand = new RelayCommand(GoLive, () => SelectedResult is not null || SelectedSongResult is not null);
         StopCommand = new RelayCommand(() => Output.IsBlank = true, () => !Output.IsBlank);
         GoLiveOrPresentCommand = new RelayCommand(GoLiveOrPresent, CanGoLiveOrPresent);
+        // Nothing is live once the output goes blank - by Stop, Escape, or the operator closing the
+        // projector window directly - so any selection (even the one just shown) should re-enable the button,
+        // and what Next/Prev/a slide-card click would act on needs to be cleared too. Without this, those
+        // controls could silently reopen the projector after an explicit Stop, since they'd still find a
+        // "live" item to resume.
+        Output.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(OutputViewModel.IsBlank) || !Output.IsBlank)
+                return;
+
+            _lastPresentedSelection = null;
+            _activeSlides = null;
+            _activeSlideIndex = 0;
+            _activeIsImage = false;
+            _activeSetItemIndex = null;
+            _activeItem = null;
+            _liveVerse = null;
+            _liveVerseParts = null;
+            _livePartIndex = 0;
+            RefreshLiveState();
+        };
         NextVerseCommand = new RelayCommand(() => StepSlide(1));
         PrevVerseCommand = new RelayCommand(() => StepSlide(-1));
+        JumpToSlideCommand = new RelayCommand(JumpToSlide, CanJumpToSlide);
         OpenSettingsCommand = new RelayCommand(OpenSettings);
 
         ShowSearchModeCommand = new RelayCommand(() => IsSetMode = false);
@@ -365,6 +417,7 @@ public sealed class MainViewModel : ObservableObject
         AddImageItemCommand = new RelayCommand(AddImageItem, () => SelectedSet is not null);
         RemoveSetItemCommand = new RelayCommand(o => ConfirmRemoveSetItem(o as SetItem), o => o is SetItem);
         PresentSetItemCommand = new RelayCommand(() => PresentSetItem(SelectedSetItem), () => SelectedSetItem is not null);
+        PresentSetCommand = new RelayCommand(PresentSet, () => SelectedSet is not null && CurrentSetItems.Count > 0);
         NewSongCommand = new RelayCommand(CreateSong);
         EditPreviewedSongCommand = new RelayCommand(EditPreviewedSong, () => PreviewedSong is not null);
 
@@ -451,6 +504,10 @@ public sealed class MainViewModel : ObservableObject
         {
             MessageBox.Show(ex.Message, "Import failed", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show($"Couldn't save the imported Bible: {ex.Message}", "Import failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     /// <summary>Imports the bundled Resources/KJV.xml (shipped next to the .exe) on first run, so there's a Bible to search out of the box.</summary>
@@ -466,11 +523,19 @@ public sealed class MainViewModel : ObservableObject
             _translationStore.Save(translation);
             return translation;
         }
-        catch (BibleImportException)
+        catch (Exception ex) when (ex is BibleImportException or IOException or UnauthorizedAccessException)
         {
             return null;
         }
     }
+
+    /// <summary>
+    /// Scripture's translation abbreviation, formatted to render right after the reference on the same line but
+    /// at its own (usually smaller) size - e.g. "Genesis 4:8" + " (KJV)" - via OutlinedTextBlock.SecondaryText,
+    /// rather than baking it into one string at one size.
+    /// </summary>
+    private static string TranslationSuffix(string? abbreviation) =>
+        string.IsNullOrEmpty(abbreviation) ? "" : $" ({abbreviation})";
 
     private void GoLive()
     {
@@ -488,6 +553,7 @@ public sealed class MainViewModel : ObservableObject
         _activeIsImage = false;
         Output.SlideImagePath = null;
 
+        var abbreviation = SelectedTranslation?.Abbreviation ?? "";
         if (_lastSearchResult is { WasReferenceJump: true } result && result.Verses.Count > 1)
         {
             var passage = result.Verses.ToList();
@@ -510,7 +576,8 @@ public sealed class MainViewModel : ObservableObject
             Output.BodyText = _liveVerseParts[0];
         }
 
-        Output.BottomText = SelectedTranslation?.Abbreviation ?? "";
+        Output.TopSecondaryText = TranslationSuffix(abbreviation);
+        Output.BottomText = "";
         ApplyStyle(_scriptureStyle, SetItemType.Scripture);
         Output.IsBlank = false;
     }
@@ -521,15 +588,24 @@ public sealed class MainViewModel : ObservableObject
     /// Go Live again. Stop is its own button/Escape shortcut for actually ending the output.
     /// </summary>
     private bool CanGoLiveOrPresent()
-        => IsSetMode ? SelectedSetItem is not null : SelectedResult is not null || SelectedSongResult is not null;
+    {
+        var selected = CurrentSelection();
+        return selected is not null && !ReferenceEquals(selected, _lastPresentedSelection);
+    }
 
     private void GoLiveOrPresent()
     {
+        _lastPresentedSelection = CurrentSelection();
+
         if (IsSetMode)
             PresentSetItem(SelectedSetItem);
         else
             GoLive();
     }
+
+    /// <summary>Whatever's selected in whichever list is showing right now - the one thing Go Live/Present would act on.</summary>
+    private object? CurrentSelection()
+        => IsSetMode ? SelectedSetItem : (object?)SelectedResult ?? SelectedSongResult;
 
     /// <summary>Go Live from a song search result: resolves the full song and presents it exactly like a Set song item.</summary>
     private void GoLiveSong()
@@ -540,6 +616,27 @@ public sealed class MainViewModel : ObservableObject
         var item = _songLibrary.ResolveByTitle(SelectedSongResult.Title);
         if (item is not null)
             PresentSetItem(item);
+    }
+
+    /// <summary>
+    /// Doubles as the set's one start/end control: starts it live from its first item when idle - "play from
+    /// the top", regardless of what's currently selected - and ends it (same as Stop) once running, so there's
+    /// one obvious button for the whole service instead of hunting for a separate Stop.
+    /// </summary>
+    private void PresentSet()
+    {
+        if (IsSetRunning)
+        {
+            Output.IsBlank = true;
+            return;
+        }
+
+        var first = CurrentSetItems.FirstOrDefault();
+        if (first is null)
+            return;
+
+        SelectedSetItem = first;
+        PresentSetItem(first);
     }
 
     private void PresentSetItem(SetItem? item)
@@ -564,19 +661,32 @@ public sealed class MainViewModel : ObservableObject
         {
             // A picture (e.g. an event flyer) fills the screen on its own - no title/verse text over it.
             Output.TopText = "";
+            Output.TopSecondaryText = "";
             Output.BodyText = "";
             Output.BottomText = "";
             Output.SlideImagePath = item.Slides[0];
             Output.IsBlank = false;
+            RefreshLiveState();
             return;
         }
 
         Output.SlideImagePath = null;
-        Output.TopText = item.Title;
-        Output.BottomText = item.Subtitle;
+        if (item.Type == SetItemType.Scripture)
+        {
+            Output.TopText = item.Title;
+            Output.TopSecondaryText = TranslationSuffix(item.Subtitle);
+            Output.BottomText = "";
+        }
+        else
+        {
+            Output.TopText = item.Title;
+            Output.TopSecondaryText = "";
+            Output.BottomText = item.Subtitle;
+        }
         Output.BodyText = _activeSlides[0];
         ApplyStyle(item.Type == SetItemType.Scripture ? _scriptureStyle : _songStyle, item.Type == SetItemType.Scripture ? SetItemType.Scripture : SetItemType.Song);
         Output.IsBlank = false;
+        RefreshLiveState();
     }
 
     /// <summary>
@@ -593,6 +703,129 @@ public sealed class MainViewModel : ObservableObject
         return item.Slides
             .SelectMany(slide => ScriptureSlideSplitter.SplitLongText(slide, limit))
             .ToList();
+    }
+
+    /// <summary>
+    /// Where each of <paramref name="item"/>'s sections (its Slides/SlideLabels - what the slide cards show)
+    /// begins within <see cref="PresentationSlides"/>'s output (what Next/Prev and the projector actually step
+    /// through). A section longer than the slide-length limit becomes more than one projector slide, so a
+    /// later section's start index runs ahead of its own position once any splitting has happened.
+    /// </summary>
+    private List<int> PresentationSlideStartIndices(SetItem item)
+    {
+        if (item.Type is SetItemType.Scripture or SetItemType.Image)
+            return Enumerable.Range(0, item.Slides.Count).ToList();
+
+        var limit = Math.Clamp(_songStyle.MaxSlideChars, ScriptureSlideSplitter.MinAllowedSlideChars, ScriptureSlideSplitter.MaxAllowedSlideChars);
+        var starts = new List<int>();
+        var running = 0;
+        foreach (var slide in item.Slides)
+        {
+            starts.Add(running);
+            running += ScriptureSlideSplitter.SplitLongText(slide, limit).Count;
+        }
+        return starts;
+    }
+
+    /// <summary>
+    /// The item whose slides are showing in the visible detail/preview panel right now - a Set item's detail
+    /// pane in Set mode, or a song's lyrics preview in Song search - or null when neither applies (Scripture
+    /// search has no slide-card list to click).
+    /// </summary>
+    private SetItem? CurrentlyDisplayedItem()
+        => IsSetMode ? SelectedSetItem : (IsSongSearch ? PreviewedSong : null);
+
+    /// <summary>
+    /// True when <paramref name="item"/> is literally what's live right now. Set items are compared by
+    /// reference - the same SetItem instance flows from selection through to presenting - but a song's
+    /// preview and its live copy are two separate instances resolved from the same file at different times,
+    /// so songs fall back to comparing the library file itself.
+    /// </summary>
+    private bool IsLive(SetItem? item)
+    {
+        if (item is null || _activeItem is null)
+            return false;
+        if (ReferenceEquals(item, _activeItem))
+            return true;
+        return item.Type == SetItemType.Song && item.LibraryPath is not null && item.LibraryPath == _activeItem.LibraryPath;
+    }
+
+    private bool CanJumpToSlide(object? parameter)
+    {
+        var item = CurrentlyDisplayedItem();
+        return item is not null && IsLive(item);
+    }
+
+    /// <summary>
+    /// Jumps straight to one section of whatever's already live - e.g. slide 28 of a 30-slide song in one
+    /// click - instead of stepping through Next/Prev one at a time. Only acts when the clicked card belongs
+    /// to the item that's actually on screen, so browsing a different song or item never changes what's live;
+    /// clicking it then is a no-op (the cards are also visibly dimmed/disabled for anything not live).
+    /// </summary>
+    private void JumpToSlide(object? parameter)
+    {
+        var item = CurrentlyDisplayedItem();
+        if (item is null || !IsLive(item) || _activeSlides is null || parameter is not int sectionIndex)
+            return;
+
+        var starts = PresentationSlideStartIndices(item);
+        if (sectionIndex < 0 || sectionIndex >= starts.Count)
+            return;
+
+        _activeSlideIndex = Math.Min(starts[sectionIndex], _activeSlides.Count - 1);
+        ShowSlide(_activeSlides[_activeSlideIndex]);
+        Output.IsBlank = false;
+        RefreshLiveState();
+    }
+
+    private int _liveSectionIndex = -1;
+    /// <summary>
+    /// Which slide card of the currently-displayed item (PreviewedSong or SelectedSetItem) is live right now,
+    /// by its section index - or -1 when that item isn't the one live, or nothing is live at all. Drives the
+    /// "you are here" highlight on the slide cards. Kept in sync wherever the live slide, the live item, or
+    /// which item is being displayed can change - see every call site of this method.
+    /// </summary>
+    public int LiveSectionIndex
+    {
+        get => _liveSectionIndex;
+        private set => SetProperty(ref _liveSectionIndex, value);
+    }
+
+    private bool _isSetRunning;
+    /// <summary>
+    /// True once the set is "running" - something in it is live, so picking any item in the list presents it
+    /// immediately (see SelectedSetItem's setter). While this is true, Go Live/Present/Show Item would always
+    /// be disabled anyway (the selection always already matches what's live), so the main window hides that
+    /// button entirely instead of showing a perpetually-greyed one - clicking a list item is the only action
+    /// needed, and a visible-but-dead button would read as "you still need to click this too."
+    /// </summary>
+    public bool IsSetRunning
+    {
+        get => _isSetRunning;
+        private set => SetProperty(ref _isSetRunning, value);
+    }
+
+    private void RefreshLiveState()
+    {
+        var item = CurrentlyDisplayedItem();
+        if (item is null || !IsLive(item) || _activeSlides is null)
+        {
+            LiveSectionIndex = -1;
+        }
+        else
+        {
+            var starts = PresentationSlideStartIndices(item);
+            var section = -1;
+            for (var i = 0; i < starts.Count; i++)
+            {
+                if (starts[i] > _activeSlideIndex)
+                    break;
+                section = i;
+            }
+            LiveSectionIndex = section;
+        }
+
+        IsSetRunning = IsSetMode && IsAnyCurrentSetItemLive();
     }
 
     /// <summary>Pushes a full style (font/sizes/weight/colors/border/shadow/background) into the output window.</summary>
@@ -617,8 +850,12 @@ public sealed class MainViewModel : ObservableObject
         target.TextColor = style.TextColor;
         target.BorderEnabled = style.BorderEnabled;
         target.BorderColor = style.BorderColor;
+        target.BorderSize = style.BorderSize;
         target.ShadowEnabled = style.ShadowEnabled;
         target.ShadowColor = style.ShadowColor;
+        target.ShadowDistance = style.ShadowDistance;
+        target.ShadowAngle = style.ShadowAngle;
+        target.ShadowThickness = style.ShadowThickness;
         target.CurrentBackground = Backgrounds.FirstOrDefault(b => b.FilePath == style.BackgroundPath);
     }
 
@@ -627,8 +864,9 @@ public sealed class MainViewModel : ObservableObject
     {
         Preview.SlideImagePath = null;
         Preview.TopText = verse.Reference;
+        Preview.TopSecondaryText = TranslationSuffix(SelectedTranslation?.Abbreviation ?? "");
         Preview.BodyText = VerseParts(verse)[0];
-        Preview.BottomText = SelectedTranslation?.Abbreviation ?? "";
+        Preview.BottomText = "";
         ApplyStyleTo(Preview, _scriptureStyle, SetItemType.Scripture);
         Preview.IsBlank = false;
     }
@@ -641,6 +879,7 @@ public sealed class MainViewModel : ObservableObject
         if (item.Type == SetItemType.Image)
         {
             Preview.TopText = "";
+            Preview.TopSecondaryText = "";
             Preview.BodyText = "";
             Preview.BottomText = "";
             Preview.SlideImagePath = item.Slides.Count > 0 ? item.Slides[0] : null;
@@ -649,8 +888,18 @@ public sealed class MainViewModel : ObservableObject
         }
 
         Preview.SlideImagePath = null;
-        Preview.TopText = item.Title;
-        Preview.BottomText = item.Subtitle;
+        if (item.Type == SetItemType.Scripture)
+        {
+            Preview.TopText = item.Title;
+            Preview.TopSecondaryText = TranslationSuffix(item.Subtitle);
+            Preview.BottomText = "";
+        }
+        else
+        {
+            Preview.TopText = item.Title;
+            Preview.TopSecondaryText = "";
+            Preview.BottomText = item.Subtitle;
+        }
         var previewSlides = PresentationSlides(item);
         Preview.BodyText = previewSlides.Count > 0 ? previewSlides[0] : "";
         ApplyStyleTo(Preview, item.Type == SetItemType.Scripture ? _scriptureStyle : _songStyle, item.Type);
@@ -681,6 +930,7 @@ public sealed class MainViewModel : ObservableObject
                 _activeSlideIndex = next;
                 ShowSlide(_activeSlides[next]);
                 Output.IsBlank = false;
+                RefreshLiveState();
                 return;
             }
 
@@ -703,6 +953,7 @@ public sealed class MainViewModel : ObservableObject
                         // primed it with slide 0.
                         _activeSlideIndex = _activeSlides.Count - 1;
                         ShowSlide(_activeSlides[_activeSlideIndex]);
+                        RefreshLiveState();
                     }
                 }
             }
@@ -735,11 +986,13 @@ public sealed class MainViewModel : ObservableObject
         _liveVerseParts = VerseParts(_liveVerse);
         _livePartIndex = direction < 0 ? _liveVerseParts.Count - 1 : 0;
         Output.TopText = _liveVerse.Reference;
+        Output.TopSecondaryText = TranslationSuffix(SelectedTranslation.Abbreviation);
         Output.BodyText = _liveVerseParts[_livePartIndex];
-        Output.BottomText = SelectedTranslation.Abbreviation;
+        Output.BottomText = "";
         Output.IsBlank = false;
 
         Preview.TopText = Output.TopText;
+        Preview.TopSecondaryText = Output.TopSecondaryText;
         Preview.BodyText = Output.BodyText;
         Preview.BottomText = Output.BottomText;
     }
@@ -751,7 +1004,15 @@ public sealed class MainViewModel : ObservableObject
             return;
 
         var set = new PresentationSet { Name = dialog.ResultText };
-        _setStore.Save(set);
+        try
+        {
+            _setStore.Save(set);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"Couldn't create \"{set.Name}\": {ex.Message}";
+            return;
+        }
         Sets.Add(set);
         SelectedSet = set;
         IsSetMode = true;
@@ -785,7 +1046,15 @@ public sealed class MainViewModel : ObservableObject
             Name = dialog.ResultText,
             Items = CurrentSetItems.Select(CloneItem).ToList()
         };
-        _setStore.Save(copy);
+        try
+        {
+            _setStore.Save(copy);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"Couldn't save \"{copy.Name}\": {ex.Message}";
+            return;
+        }
         Sets.Add(copy);
         SelectedSet = copy;
     }
@@ -955,9 +1224,19 @@ public sealed class MainViewModel : ObservableObject
                 continue;
 
             if (set == SelectedSet)
+            {
                 MarkSetDirty();
-            else
+                continue;
+            }
+
+            try
+            {
                 _setStore.Save(set);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                StatusMessage = $"Couldn't update \"{set.Name}\": {ex.Message}";
+            }
         }
     }
 
@@ -1100,7 +1379,14 @@ public sealed class MainViewModel : ObservableObject
 
         _scriptureStyle = dialog.ResultScripture;
         _songStyle = dialog.ResultSong;
-        _settingsStore.Save(new PresentationSettings { Scripture = _scriptureStyle, Song = _songStyle });
+        try
+        {
+            _settingsStore.Save(new PresentationSettings { Scripture = _scriptureStyle, Song = _songStyle });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"Settings applied, but couldn't be saved: {ex.Message}";
+        }
 
         if (dialog.ResultScreen is not null)
             SelectedScreen = dialog.ResultScreen;

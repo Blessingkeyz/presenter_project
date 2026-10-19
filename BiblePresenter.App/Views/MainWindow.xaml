@@ -14,9 +14,14 @@
     <Window.Resources>
         <ResourceDictionary Source="pack://application:,,,/Resources/Styles.xaml" />
     </Window.Resources>
-    <!-- Escape stops the projector from anywhere in the window, search box included. -->
+    <!-- Escape stops the projector from anywhere in the window, search box included. F5 and Ctrl+P both
+         present the current selection - same action as the Go Live/Present button - from anywhere too.
+         Function keys and Ctrl-combos never land inside a textbox as typed characters, unlike a bare
+         letter key, so neither can misfire while typing a search query. -->
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding StopCommand}" />
+        <KeyBinding Key="F5" Command="{Binding GoLiveOrPresentCommand}" />
+        <KeyBinding Key="P" Modifiers="Control" Command="{Binding GoLiveOrPresentCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -204,7 +209,11 @@
                                     </ItemsControl.ItemsSource>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{StaticResource InputBg}" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                            <!-- Clicking a card jumps the live output straight to that section - a no-op (and visibly
+                                                 dimmed) unless this song is the one actually on screen right now. -->
+                                            <Button Style="{StaticResource LiveAwareSlideCardButton}"
+                                                    Command="{Binding DataContext.JumpToSlideCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding Index}">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding Label}" Foreground="{StaticResource Candle}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4">
                                                         <TextBlock.Style>
@@ -219,7 +228,7 @@
                                                     </TextBlock>
                                                     <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="{StaticResource Parchment}" />
                                                 </StackPanel>
-                                            </Border>
+                                            </Button>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -266,7 +275,7 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <Button Content="Add items  &#x25BE;" Click="SetFileMenu_Click" AutomationProperties.Name="Add items" HorizontalAlignment="Left" Margin="0">
+                        <Button Content="Add items  &#x25BE;" Click="SetFileMenu_Click" AutomationProperties.Name="Add items" HorizontalAlignment="Left" Margin="0,0,10,0">
                             <Button.ContextMenu>
                                 <ContextMenu Placement="Bottom" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                     <MenuItem Header="Song" Command="{Binding AddSongItemCommand}" />
@@ -276,6 +285,12 @@
                                 </ContextMenu>
                             </Button.ContextMenu>
                         </Button>
+                        <!-- Starts the whole set live from its first item. After this (or after presenting any one
+                             item directly), the set is "running" - clicking any other item in the list jumps
+                             straight to it, no separate Present click needed. The button itself becomes
+                             "End Presentation" while running, taking over for the right rail's Stop. -->
+                        <Button Style="{StaticResource PresentSetButton}" Command="{Binding PresentSetCommand}"
+                                HorizontalAlignment="Left" Margin="0" />
                     </DockPanel>
 
                     <!-- Same two-pane shape as song search: the list on the left, the selected item's detail on the right. -->
@@ -392,7 +407,11 @@
                                             </ItemsControl.Style>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="{StaticResource InputBg}" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                                    <!-- Clicking a card jumps the live output straight to that section - a no-op (and visibly
+                                                         dimmed) unless this item is the one actually on screen right now. -->
+                                                    <Button Style="{StaticResource LiveAwareSlideCardButton}"
+                                                            Command="{Binding DataContext.JumpToSlideCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding Index}">
                                                         <StackPanel>
                                                             <TextBlock Text="{Binding Label}" Foreground="{StaticResource Candle}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4">
                                                                 <TextBlock.Style>
@@ -407,7 +426,7 @@
                                                             </TextBlock>
                                                             <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="{StaticResource Parchment}" />
                                                         </StackPanel>
-                                                    </Border>
+                                                    </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
@@ -473,16 +492,7 @@
                         <Grid DataContext="{Binding Preview}">
                             <Image Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
                                    gif:ImageBehavior.AnimatedSource="{Binding CurrentBackground.FilePath, Converter={StaticResource PathToImageSource}}" />
-                            <Rectangle>
-                                <Rectangle.Fill>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#00000000" Offset="0.0" />
-                                        <GradientStop Color="#00000000" Offset="0.25" />
-                                        <GradientStop Color="#8F000000" Offset="0.55" />
-                                        <GradientStop Color="#CC000000" Offset="1.0" />
-                                    </LinearGradientBrush>
-                                </Rectangle.Fill>
-                            </Rectangle>
+                            <!-- No dark scrim: matches the projector, which relies on the outlined text's own contrast. -->
                             <Viewbox Stretch="Uniform" Margin="16">
                                 <Grid Width="960" Height="540">
                                     <Grid.RowDefinitions>
@@ -492,6 +502,8 @@
                                     </Grid.RowDefinitions>
 
                                     <local:OutlinedTextBlock Grid.Row="0" Text="{Binding TopText}"
+                                                              SecondaryText="{Binding TopSecondaryText}"
+                                                              SecondaryFontSize="{Binding SubtitleFontSize}"
                                                               Style="{StaticResource PreviewOutlinedText}"
                                                               HorizontalAlignment="Center" TextAlignment="Center"
                                                               FontSize="{Binding TitleFontSize}" />
@@ -520,13 +532,17 @@
 
                     <!-- Always sends the current selection live - switching items while something is already on screen is one click, not Stop then Go Live.
                          The label itself says which: "Go Live"/"Present" before anything's on screen, "Show Verse"/"Show Item" once something is,
-                         so it never reads as "start over" when it's actually "switch to this instead". -->
+                         so it never reads as "start over" when it's actually "switch to this instead". Hidden entirely once the set is running
+                         (IsSetRunning) - clicking any item in the list is the only action needed then, and this button would always be disabled
+                         anyway, so leaving it visible would read as "you still need to click this too". -->
                     <Button Style="{StaticResource AccentButton}" Command="{Binding GoLiveOrPresentCommand}"
+                            Visibility="{Binding IsSetRunning, Converter={StaticResource InverseBoolToVisibility}}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,10">
                         <Button.Content>
                             <MultiBinding Converter="{StaticResource LiveButtonLabel}">
                                 <Binding Path="IsSetMode" />
                                 <Binding Path="Output.IsBlank" />
+                                <Binding Path="IsSongSearch" />
                             </MultiBinding>
                         </Button.Content>
                     </Button>
@@ -535,8 +551,10 @@
                     <Button Content="Next ▶" Command="{Binding NextVerseCommand}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,10" />
                     <!-- Last on purpose: the ending action, lowest-frequency click of the four. The loud "on air" red
-                         is lit only while something is actually live. Also Escape (Window.InputBindings). -->
+                         is lit only while something is actually live. Also Escape (Window.InputBindings).
+                         Hidden in Set mode, where the "Present Set"/"End Presentation" button above covers this. -->
                     <Button Style="{StaticResource LiveButton}" Command="{Binding StopCommand}" Content="Stop"
+                            Visibility="{Binding IsSetMode, Converter={StaticResource InverseBoolToVisibility}}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0" />
                 </StackPanel>
             </Border>

@@ -109,4 +109,38 @@ public class SearchIndexServiceTests
         Assert.Equal("1 Thessalonians", result.Verses[0].BookName);
         Assert.Equal("2 Thessalonians", result.Verses[1].BookName);
     }
+
+    [Fact]
+    public void Load_SwitchingBackToAnEarlierTranslation_StillSearchesItCorrectly()
+    {
+        // Each translation's built index is cached (see SearchIndexService), so switching back
+        // to one already used this session must return the same correct results, not stale or
+        // mixed-up data from whichever translation was loaded in between.
+        var first = BuildSampleTranslation();
+        var second = new Translation
+        {
+            Id = "t2",
+            Name = "Second",
+            Abbreviation = "SEC",
+            Verses = new List<Verse>
+            {
+                new() { TranslationId = "t2", BookIndex = 1, BookName = "Genesis", Chapter = 1, Number = 1, Text = "A completely different rendering of the first verse." }
+            }
+        };
+
+        var index = new SearchIndexService();
+        index.Load(first);
+        var firstPass = index.Search("jn 3:16");
+        Assert.True(firstPass.WasReferenceJump);
+        Assert.Equal("John", Assert.Single(firstPass.Verses).BookName);
+
+        index.Load(second);
+        var secondTranslationResult = index.Search("jn 3:16");
+        Assert.Empty(secondTranslationResult.Verses); // "second" has no John 3:16
+
+        index.Load(first);
+        var backToFirst = index.Search("jn 3:16");
+        Assert.True(backToFirst.WasReferenceJump);
+        Assert.Equal("John", Assert.Single(backToFirst.Verses).BookName);
+    }
 }

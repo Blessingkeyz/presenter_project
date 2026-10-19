@@ -39,7 +39,9 @@ public sealed class SettingsViewModel : ObservableObject
             SlideLengthHint = "characters per slide. A longer verse continues on the next slide, cut at a natural pause.",
             SampleTitle = "John 3:16",
             SampleBody = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
-            SampleSubtitle = "King James Version"
+            SampleSubtitle = "", // the translation joins the title line instead (SampleTitleSecondary) - this row stays empty, like the real BottomText does
+            SampleTitleSecondary = " (KJV)",
+            SubtitleFieldLabel = "Translation"
         };
         Song = new StyleEditorViewModel(song, backgrounds)
         {

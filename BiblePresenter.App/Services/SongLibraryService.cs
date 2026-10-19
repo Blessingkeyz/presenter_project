@@ -74,13 +74,25 @@ public sealed class SongLibraryService
             .ToList();
     }
 
-    /// <summary>Finds a song in the library by title (case-insensitive) and imports it, or null if not found.</summary>
+    /// <summary>
+    /// Finds a song in the library by title (case-insensitive) and imports it, or null if not found - or if it
+    /// was deleted or corrupted after the tolerant title/lyrics scan found it but before this full import ran.
+    /// </summary>
     public SetItem? ResolveByTitle(string title)
     {
         foreach (var (songTitle, path) in ListSongs())
         {
-            if (string.Equals(songTitle, title, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(songTitle, title, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            try
+            {
                 return _importService.Import(path);
+            }
+            catch (BibleImportException)
+            {
+                return null;
+            }
         }
         return null;
     }

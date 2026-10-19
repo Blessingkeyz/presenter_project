@@ -36,11 +36,27 @@ public sealed class StyleEditorViewModel : ObservableObject
     private string _borderColor;
     public string BorderColor { get => _borderColor; set => SetProperty(ref _borderColor, value); }
 
+    private double _borderSize;
+    /// <summary>Outline half-width as a percentage of the rendered text size (0-10).</summary>
+    public double BorderSize { get => _borderSize; set => SetProperty(ref _borderSize, value); }
+
     private bool _shadowEnabled;
     public bool ShadowEnabled { get => _shadowEnabled; set => SetProperty(ref _shadowEnabled, value); }
 
     private string _shadowColor;
     public string ShadowColor { get => _shadowColor; set => SetProperty(ref _shadowColor, value); }
+
+    private double _shadowDistance;
+    /// <summary>How far the shadow sits from the letter, as a percentage of the rendered text size (0-20).</summary>
+    public double ShadowDistance { get => _shadowDistance; set => SetProperty(ref _shadowDistance, value); }
+
+    private double _shadowAngle;
+    /// <summary>Direction the shadow falls in, in degrees (0 = right, 90 = straight down, 45 = the classic down-right look).</summary>
+    public double ShadowAngle { get => _shadowAngle; set => SetProperty(ref _shadowAngle, value); }
+
+    private double _shadowThickness;
+    /// <summary>Extra stroke added to the shadow silhouette, as a percentage of the rendered text size (0-10). 0 leaves the shadow as thick as the letters themselves.</summary>
+    public double ShadowThickness { get => _shadowThickness; set => SetProperty(ref _shadowThickness, value); }
 
     private int _maxSlideChars;
     /// <summary>Characters before a long verse (Scripture) or stanza (Song) continues on the next slide.</summary>
@@ -57,6 +73,12 @@ public sealed class StyleEditorViewModel : ObservableObject
     public string SampleBody { get; init; } = "Sample body text";
     public string SampleSubtitle { get; init; } = "Sample subtitle";
 
+    /// <summary>Appended after SampleTitle at SubtitleFontSize, on the same line - e.g. " (KJV)" for Scripture, where the translation joins the reference instead of sitting on its own row. Empty for Song, which keeps SampleSubtitle as a separate row.</summary>
+    public string SampleTitleSecondary { get; init; } = "";
+
+    /// <summary>What the Subtitle size box controls, in this tab's own words - "Translation" for Scripture, "Subtitle" for Song.</summary>
+    public string SubtitleFieldLabel { get; init; } = "Subtitle";
+
     private BackgroundMedia? _selectedBackground;
     public BackgroundMedia? SelectedBackground { get => _selectedBackground; set => SetProperty(ref _selectedBackground, value); }
 
@@ -72,8 +94,12 @@ public sealed class StyleEditorViewModel : ObservableObject
         _textColor = source.TextColor;
         _borderEnabled = source.BorderEnabled;
         _borderColor = source.BorderColor;
+        _borderSize = source.BorderSize;
         _shadowEnabled = source.ShadowEnabled;
         _shadowColor = source.ShadowColor;
+        _shadowDistance = source.ShadowDistance;
+        _shadowAngle = source.ShadowAngle;
+        _shadowThickness = source.ShadowThickness;
         _maxSlideChars = source.MaxSlideChars;
         _selectedBackground = backgrounds.FirstOrDefault(b => b.FilePath == source.BackgroundPath);
     }
@@ -90,8 +116,12 @@ public sealed class StyleEditorViewModel : ObservableObject
         TextColor = TextColor,
         BorderEnabled = BorderEnabled,
         BorderColor = BorderColor,
+        BorderSize = Math.Clamp(BorderSize, 0, 10),
         ShadowEnabled = ShadowEnabled,
         ShadowColor = ShadowColor,
+        ShadowDistance = Math.Clamp(ShadowDistance, 0, 20),
+        ShadowAngle = ((ShadowAngle % 360) + 360) % 360,
+        ShadowThickness = Math.Clamp(ShadowThickness, 0, 10),
         MaxSlideChars = Math.Clamp(MaxSlideChars, ScriptureSlideSplitter.MinAllowedSlideChars, ScriptureSlideSplitter.MaxAllowedSlideChars),
         BackgroundPath = SelectedBackground?.FilePath
     };

@@ -187,7 +187,7 @@ public sealed class SlidesWithLabelsConverter : IMultiValueConverter
 
         var labels = values.Length > 1 && values[1] is IEnumerable<string> l ? l.ToList() : new List<string>();
         return slides
-            .Select((text, i) => new BiblePresenter.App.ViewModels.SongSlideView(i < labels.Count ? labels[i] : "", text))
+            .Select((text, i) => new BiblePresenter.App.ViewModels.SongSlideView(i < labels.Count ? labels[i] : "", text, i))
             .ToList();
     }
 
@@ -195,10 +195,21 @@ public sealed class SlidesWithLabelsConverter : IMultiValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>True when two indices match: [a slide card's own Index, MainViewModel.LiveSectionIndex] - drives the "you are here" highlight on whichever card is live right now.</summary>
+public sealed class IndexEqualsConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+        => values.Length >= 2 && values[0] is int a && values[1] is int b && a == b;
+
+    public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 /// <summary>
-/// Labels the Go Live/Present button: [IsSetMode, Output.IsBlank] -> "Go Live"/"Present" before anything is on
-/// screen, "Show Verse"/"Show Item" once something is - the button still just sends the current selection live
-/// either way, but the label says "switch to this" instead of implying "start over".
+/// Labels the Go Live/Present button: [IsSetMode, Output.IsBlank, IsSongSearch] -> "Go Live"/"Present" before
+/// anything is on screen, "Show Verse"/"Show Song"/"Show Item" once something is - the button still just sends
+/// the current selection live either way, but the label says "switch to this" instead of implying "start over",
+/// and names the right kind of content instead of always saying "Verse" even when it's a song.
 /// </summary>
 public sealed class LiveButtonLabelConverter : IMultiValueConverter
 {
@@ -206,9 +217,13 @@ public sealed class LiveButtonLabelConverter : IMultiValueConverter
     {
         var isSetMode = values.Length > 0 && values[0] is true;
         var isBlank = values.Length > 1 && values[1] is true;
+        var isSongSearch = values.Length > 2 && values[2] is true;
+
+        if (isSetMode)
+            return isBlank ? "Present" : "Show Item";
         if (isBlank)
-            return isSetMode ? "Present" : "Go Live";
-        return isSetMode ? "Show Item" : "Show Verse";
+            return "Go Live";
+        return isSongSearch ? "Show Song" : "Show Verse";
     }
 
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)

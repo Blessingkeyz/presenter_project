@@ -22,8 +22,12 @@
             <Setter Property="Fill" Value="{Binding TextColor, Converter={StaticResource HexToBrush}}" />
             <Setter Property="BorderEnabled" Value="{Binding BorderEnabled}" />
             <Setter Property="Stroke" Value="{Binding BorderColor, Converter={StaticResource HexToBrush}}" />
+            <Setter Property="BorderSize" Value="{Binding BorderSize}" />
             <Setter Property="HasShadow" Value="{Binding ShadowEnabled}" />
             <Setter Property="ShadowColor" Value="{Binding ShadowColor, Converter={StaticResource HexToBrush}}" />
+            <Setter Property="ShadowDistance" Value="{Binding ShadowDistance}" />
+            <Setter Property="ShadowAngle" Value="{Binding ShadowAngle}" />
+            <Setter Property="ShadowThickness" Value="{Binding ShadowThickness}" />
         </Style>
     </Window.Resources>
 
@@ -31,18 +35,8 @@
         <Image Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
                gif:ImageBehavior.AnimatedSource="{Binding CurrentBackground.FilePath, Converter={StaticResource PathToImageSource}}" />
 
-        <!-- Soft scrim so the text reads clearly over any background photo without needing a heavy
-             outline - transparent near the top, darkest toward the bottom where most lyric text sits. -->
-        <Rectangle>
-            <Rectangle.Fill>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#00000000" Offset="0.0" />
-                    <GradientStop Color="#00000000" Offset="0.25" />
-                    <GradientStop Color="#8F000000" Offset="0.55" />
-                    <GradientStop Color="#CC000000" Offset="1.0" />
-                </LinearGradientBrush>
-            </Rectangle.Fill>
-        </Rectangle>
+        <!-- No dark scrim here on purpose: the outlined text (see OutlinedTextBlock) carries its own contrast
+             against the background, the way OpenSong's does, instead of dimming the photo to compensate. -->
 
         <!-- Shown at once when the window opens; later slide changes fade in (see OutputWindow.xaml.cs). -->
         <Grid x:Name="TextPanel" Margin="60,36">
@@ -54,6 +48,8 @@
 
             <local:OutlinedTextBlock Grid.Row="0"
                                       Text="{Binding TopText}"
+                                      SecondaryText="{Binding TopSecondaryText}"
+                                      SecondaryFontSize="{Binding SubtitleFontSize}"
                                       HorizontalAlignment="Center" TextAlignment="Center"
                                       FontSize="{Binding TitleFontSize}" />
 
