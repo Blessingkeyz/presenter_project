@@ -86,6 +86,108 @@ public class SetXmlStoreTests
     }
 
     [Fact]
+    public void Parse_ImageItem_FilenameOutsideTheSetsAndImageFolders_IsRejected()
+    {
+        // A <filename> comes straight from a shared .set file, which can arrive from someone other than
+        // the operator. Without a containment check, this would let a crafted set file point at an
+        // arbitrary local file (or, for a UNC path, make Windows open an SMB connection to a remote host)
+        // purely from the file sitting in the Sets folder - LoadAll() reads every file there automatically.
+        var (store, _, setsDir, songsDir) = BuildStore();
+        var outsideDir = TempDir();
+        try
+        {
+            Directory.CreateDirectory(outsideDir);
+            var outsideFile = Path.Combine(outsideDir, "private.png");
+            File.WriteAllBytes(outsideFile, Convert.FromBase64String(TinyPngBase64));
+
+            File.WriteAllText(Path.Combine(setsDir, "Sneaky Set"), $$"""
+                <set name="Sneaky Set"><slide_groups>
+                  <slide_group name="Untitled" type="image">
+                    <title/><subtitle/><notes/>
+                    <slides><slide><filename>{{outsideFile}}</filename></slide></slides>
+                  </slide_group>
+                </slide_groups></set>
+                """);
+
+            var set = Assert.Single(store.LoadAll());
+            var item = Assert.Single(set.Items);
+            Assert.Empty(item.Slides); // the outside file exists, but is outside the trusted folders, so it's refused
+        }
+        finally
+        {
+            Directory.Delete(setsDir, recursive: true);
+            Directory.Delete(songsDir, recursive: true);
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Parse_ImageItem_RelativeFilenameEscapingTheSetsFolderWithDotDot_IsRejected()
+    {
+        var (store, _, setsDir, songsDir) = BuildStore();
+        var outsideDir = TempDir();
+        try
+        {
+            Directory.CreateDirectory(outsideDir);
+            var outsideFile = Path.Combine(outsideDir, "private.png");
+            File.WriteAllBytes(outsideFile, Convert.FromBase64String(TinyPngBase64));
+
+            // A relative filename laced with ".." that walks out of the Sets folder to the file above.
+            var traversal = Path.GetRelativePath(setsDir, outsideFile);
+
+            File.WriteAllText(Path.Combine(setsDir, "Traversal Set"), $$"""
+                <set name="Traversal Set"><slide_groups>
+                  <slide_group name="Untitled" type="image">
+                    <title/><subtitle/><notes/>
+                    <slides><slide><filename>{{traversal}}</filename></slide></slides>
+                  </slide_group>
+                </slide_groups></set>
+                """);
+
+            var set = Assert.Single(store.LoadAll());
+            var item = Assert.Single(set.Items);
+            Assert.Empty(item.Slides);
+        }
+        finally
+        {
+            Directory.Delete(setsDir, recursive: true);
+            Directory.Delete(songsDir, recursive: true);
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Parse_ImageItem_FilenameInsideTheSetsFolder_StillResolves()
+    {
+        // Legitimate relative filenames (the normal case for a real OpenSong set referencing a picture
+        // kept alongside it) must keep working after the containment check.
+        var (store, _, setsDir, songsDir) = BuildStore();
+        try
+        {
+            File.WriteAllBytes(Path.Combine(setsDir, "banner.png"), Convert.FromBase64String(TinyPngBase64));
+
+            File.WriteAllText(Path.Combine(setsDir, "Local File Set"), """
+                <set name="Local File Set"><slide_groups>
+                  <slide_group name="Untitled" type="image">
+                    <title/><subtitle/><notes/>
+                    <slides><slide><filename>banner.png</filename></slide></slides>
+                  </slide_group>
+                </slide_groups></set>
+                """);
+
+            var set = Assert.Single(store.LoadAll());
+            var item = Assert.Single(set.Items);
+            var path = Assert.Single(item.Slides);
+            Assert.True(File.Exists(path));
+        }
+        finally
+        {
+            Directory.Delete(setsDir, recursive: true);
+            Directory.Delete(songsDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void StoreImage_RejectsAFileThatIsNotAPicture()
     {
         var (store, _, setsDir, songsDir) = BuildStore();

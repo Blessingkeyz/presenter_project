@@ -205,7 +205,36 @@ public sealed class SetXmlStore
             return null;
 
         var candidate = Path.IsPathRooted(filename) ? filename : Path.Combine(_folder, filename);
-        return File.Exists(candidate) ? candidate : null;
+        return IsUnderTrustedFolder(candidate) && File.Exists(candidate) ? candidate : null;
+    }
+
+    /// <summary>
+    /// A &lt;filename&gt; comes straight from a shared .set file, which (unlike the rest of this app's own
+    /// data) can arrive from someone other than the operator - a set another volunteer emailed over, say.
+    /// Without this check, an absolute or UNC path (or a relative one laced with "..") would let a shared
+    /// set file read an arbitrary local file as a slide image, or - for a UNC path - make Windows open an
+    /// SMB connection to a remote host purely from this app starting up and loading its Sets folder, which
+    /// it does automatically and unconditionally. Resolving to the real full path and requiring it stay
+    /// under a folder this app itself writes to closes all three at once.
+    /// </summary>
+    private bool IsUnderTrustedFolder(string candidate)
+    {
+        try
+        {
+            var full = Path.GetFullPath(candidate);
+            return IsWithin(full, _folder) || IsWithin(full, _imageFolder);
+        }
+        catch (Exception ex) when (ex is ArgumentException or PathTooLongException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsWithin(string fullPath, string trustedFolder)
+    {
+        var trustedFull = Path.GetFullPath(trustedFolder);
+        return fullPath.StartsWith(trustedFull, StringComparison.OrdinalIgnoreCase)
+            && (fullPath.Length == trustedFull.Length || fullPath[trustedFull.Length] == Path.DirectorySeparatorChar);
     }
 
     /// <summary>A song edited "for this set only": its own words live in the set file, tagged so it isn't mistaken for a library reference.</summary>
