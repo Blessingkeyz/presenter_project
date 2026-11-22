@@ -117,7 +117,11 @@ public sealed class MainViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _isSongSearch, value))
+            {
                 RunSearch();
+                RaisePropertyChanged(nameof(ShowTextSearchResults));
+                RaisePropertyChanged(nameof(ShowScriptureBrowse));
+            }
         }
     }
 
@@ -131,6 +135,121 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _searchSongsByLyrics, value) && IsSongSearch)
                 RunSearch();
         }
+    }
+
+    // ---- Scripture browse (book -> chapter -> verse, no typing - for anyone who'd rather tap than search) ----
+
+    private bool _isBrowsingScripture;
+    public bool IsBrowsingScripture
+    {
+        get => _isBrowsingScripture;
+        set
+        {
+            if (!SetProperty(ref _isBrowsingScripture, value))
+                return;
+
+            if (value)
+                SelectedBrowseBook = null;
+            RaisePropertyChanged(nameof(ShowTextSearchResults));
+            RaisePropertyChanged(nameof(ShowScriptureBrowse));
+        }
+    }
+
+    /// <summary>The typed-search results list shows only when neither Song search nor the Scripture browse panel is active.</summary>
+    public bool ShowTextSearchResults => !IsSongSearch && !IsBrowsingScripture;
+
+    /// <summary>The book/chapter/verse browse panel is Scripture-only, so it never shows while Song search is active even if it was left toggled on.</summary>
+    public bool ShowScriptureBrowse => IsBrowsingScripture && !IsSongSearch;
+
+    /// <summary>Every book, in canonical order - the same table typed search already resolves names/aliases against.</summary>
+    public ObservableCollection<Book> BrowseBooks { get; } = new();
+
+    private Book? _selectedBrowseBook;
+    public Book? SelectedBrowseBook
+    {
+        get => _selectedBrowseBook;
+        set
+        {
+            if (!SetProperty(ref _selectedBrowseBook, value))
+                return;
+
+            SelectedBrowseChapter = null;
+            BrowseChapters.Clear();
+            if (value is null || SelectedTranslation is null)
+                return;
+
+            foreach (var chapter in SelectedTranslation.Verses
+                         .Where(v => v.BookIndex == value.Index)
+                         .Select(v => v.Chapter)
+                         .Distinct()
+                         .OrderBy(c => c))
+                BrowseChapters.Add(chapter);
+        }
+    }
+
+    /// <summary>Chapters the loaded translation actually has for <see cref="SelectedBrowseBook"/> - derived from its own verses, not a fixed table, so it's always right for whatever translation is active.</summary>
+    public ObservableCollection<int> BrowseChapters { get; } = new();
+
+    private int? _selectedBrowseChapter;
+    public int? SelectedBrowseChapter
+    {
+        get => _selectedBrowseChapter;
+        set
+        {
+            if (!SetProperty(ref _selectedBrowseChapter, value))
+                return;
+
+            SelectedBrowseVerse = null;
+            BrowseVerses.Clear();
+            if (value is not int chapter || SelectedBrowseBook is not { } book || SelectedTranslation is null)
+                return;
+
+            foreach (var verseNumber in SelectedTranslation.Verses
+                         .Where(v => v.BookIndex == book.Index && v.Chapter == chapter)
+                         .Select(v => v.Number)
+                         .OrderBy(n => n))
+                BrowseVerses.Add(verseNumber);
+        }
+    }
+
+    public ObservableCollection<int> BrowseVerses { get; } = new();
+
+    private int? _selectedBrowseVerse;
+    /// <summary>Tapping a verse number is the same as picking it from the typed-search results list - it goes into the preview, ready for Go Live, through the exact same SelectedResult path.</summary>
+    public int? SelectedBrowseVerse
+    {
+        get => _selectedBrowseVerse;
+        set
+        {
+            if (!SetProperty(ref _selectedBrowseVerse, value))
+                return;
+            if (value is not int verseNumber || SelectedBrowseBook is not { } book
+                || SelectedBrowseChapter is not int chapter || SelectedTranslation is null)
+                return;
+
+            var verse = SelectedTranslation.Verses.FirstOrDefault(v =>
+                v.BookIndex == book.Index && v.Chapter == chapter && v.Number == verseNumber);
+            if (verse is not null)
+                SelectedResult = verse;
+        }
+    }
+
+    /// <summary>Drag-selecting a run of verse tiles plays the same role typing "Psalms 126:1-6" already does -
+    /// the whole range goes live together, steppable with Next/Previous via GoLive, instead of landing on just one verse.</summary>
+    public void SelectBrowseVerseRange(IReadOnlyList<int> verseNumbers)
+    {
+        if (SelectedBrowseBook is not { } book || SelectedBrowseChapter is not int chapter || SelectedTranslation is null)
+            return;
+
+        var verses = SelectedTranslation.Verses
+            .Where(v => v.BookIndex == book.Index && v.Chapter == chapter && verseNumbers.Contains(v.Number))
+            .OrderBy(v => v.Number)
+            .ToList();
+        if (verses.Count == 0)
+            return;
+
+        _lastSearchResult = verses.Count > 1 ? new SearchResult { Verses = verses, WasReferenceJump = true } : null;
+        SelectedResult = verses[0];
     }
 
     private Screen? _selectedScreen;
@@ -425,6 +544,9 @@ public sealed class MainViewModel : ObservableObject
         _scriptureStyle = settings.Scripture;
         ScriptureSlideSplitter.MaxSlideChars = _scriptureStyle.MaxSlideChars;
         _songStyle = settings.Song;
+
+        foreach (var book in BookTable.Instance.Books)
+            BrowseBooks.Add(book);
 
         foreach (var t in _translationStore.LoadAll())
             Translations.Add(t);

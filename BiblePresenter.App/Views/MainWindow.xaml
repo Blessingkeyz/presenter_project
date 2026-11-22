@@ -125,10 +125,21 @@
                                              IsChecked="{Binding SearchSongsByLyrics}" />
                             </StackPanel>
                         </Border>
+
+                        <!-- Scripture-only: a tap-through book/chapter/verse picker for anyone who'd rather not type a reference. -->
+                        <Border Style="{StaticResource Pill}" Visibility="{Binding IsSongSearch, Converter={StaticResource InverseBoolToVisibility}}">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Content="Search" Style="{StaticResource SegmentToggle}" GroupName="ScriptureFindBy"
+                                             IsChecked="{Binding IsBrowsingScripture, Converter={StaticResource InverseBool}}" />
+                                <RadioButton Content="Browse" Style="{StaticResource SegmentToggle}" GroupName="ScriptureFindBy"
+                                             IsChecked="{Binding IsBrowsingScripture}" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </DockPanel>
 
-                <Border Background="{StaticResource InputBg}" BorderBrush="{StaticResource InputBorder}" BorderThickness="1" CornerRadius="7">
+                <Border Background="{StaticResource InputBg}" BorderBrush="{StaticResource InputBorder}" BorderThickness="1" CornerRadius="7"
+                        Visibility="{Binding ShowScriptureBrowse, Converter={StaticResource InverseBoolToVisibility}}">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Left" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="15"
                                    Foreground="{StaticResource Faint}" VerticalAlignment="Center" Margin="14,0,0,0" />
@@ -146,10 +157,11 @@
                     <!-- Watermark: grounds the reserved results canvas so a short result list doesn't read as a dead/broken void. -->
                     <Image Source="pack://application:,,,/BiblePresenter.App;component/Resources/AppIcon.png"
                            Width="220" Height="220" Opacity="0.035" IsHitTestVisible="False"
-                           RenderOptions.BitmapScalingMode="HighQuality" />
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           Visibility="{Binding ShowScriptureBrowse, Converter={StaticResource InverseBoolToVisibility}}" />
 
                     <ListBox x:Name="ResultsList"
-                             Visibility="{Binding IsSongSearch, Converter={StaticResource InverseBoolToVisibility}}"
+                             Visibility="{Binding ShowTextSearchResults, Converter={StaticResource BoolToVisibility}}"
                              ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}"
                              VirtualizingStackPanel.IsVirtualizing="True"
                              VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -164,6 +176,51 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+                    <!-- Scripture browse: book list, then chapter grid, then verse grid - tap through, no typing. -->
+                    <Grid Visibility="{Binding ShowScriptureBrowse, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.9*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="1.3*" />
+                        </Grid.ColumnDefinitions>
+
+                        <DockPanel Grid.Column="0">
+                            <TextBlock DockPanel.Dock="Top" Text="BOOK" Style="{StaticResource Caption}" Margin="0,0,0,10" />
+                            <ListBox ItemsSource="{Binding BrowseBooks}" SelectedItem="{Binding SelectedBrowseBook}"
+                                     DisplayMemberPath="Name" ItemContainerStyle="{StaticResource BrowseBookListItem}"
+                                     Background="Transparent" BorderThickness="0" />
+                        </DockPanel>
+
+                        <Border Grid.Column="1" Width="1" Background="{StaticResource Border}" Margin="18,0" />
+
+                        <DockPanel Grid.Column="2">
+                            <TextBlock DockPanel.Dock="Top" Text="CHAPTER" Style="{StaticResource Caption}" Margin="0,0,0,10" />
+                            <TextBlock DockPanel.Dock="Top" Text="Pick a book first" Style="{StaticResource Caption}" FontStyle="Italic"
+                                       Visibility="{Binding SelectedBrowseBook, Converter={StaticResource NullToInverseVisibility}}" />
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ListBox Style="{StaticResource NumberGridListBox}" ItemContainerStyle="{StaticResource NumberGridItem}"
+                                         ItemsSource="{Binding BrowseChapters}" SelectedItem="{Binding SelectedBrowseChapter}" />
+                            </ScrollViewer>
+                        </DockPanel>
+
+                        <Border Grid.Column="3" Width="1" Background="{StaticResource Border}" Margin="18,0" />
+
+                        <DockPanel Grid.Column="4">
+                            <TextBlock DockPanel.Dock="Top" Text="VERSE" Style="{StaticResource Caption}" Margin="0,0,0,10" />
+                            <TextBlock DockPanel.Dock="Top" Text="Pick a chapter first" Style="{StaticResource Caption}" FontStyle="Italic"
+                                       Visibility="{Binding SelectedBrowseChapter, Converter={StaticResource NullToInverseVisibility}}" />
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ListBox x:Name="BrowseVerseGridList" Style="{StaticResource NumberGridListBox}" ItemContainerStyle="{StaticResource NumberGridItem}"
+                                         ItemsSource="{Binding BrowseVerses}" SelectedItem="{Binding SelectedBrowseVerse}" SelectionMode="Extended"
+                                         PreviewMouseLeftButtonDown="BrowseVerseGridList_PreviewMouseLeftButtonDown"
+                                         PreviewMouseMove="BrowseVerseGridList_PreviewMouseMove"
+                                         PreviewMouseLeftButtonUp="BrowseVerseGridList_PreviewMouseLeftButtonUp" />
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Grid>
 
                     <Grid Visibility="{Binding IsSongSearch, Converter={StaticResource BoolToVisibility}}">
                         <Grid.ColumnDefinitions>
@@ -244,6 +301,7 @@
                                 <Binding Path="IsSongSearch" />
                                 <Binding Path="SearchResults.Count" />
                                 <Binding Path="SongResults.Count" />
+                                <Binding Path="IsBrowsingScripture" />
                             </MultiBinding>
                         </TextBlock.Visibility>
                         <TextBlock.Text>

@@ -19,6 +19,16 @@ public partial class App : System.Windows.Application
         // a corrupted song, a disk-full save). See AppCrashLog for where this goes.
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
+        // DispatcherUnhandledException only covers the UI thread. An exception on any other thread
+        // (a background Task, a native callback) can't be kept non-fatal - .NET terminates the
+        // process either way - but this at least leaves a log entry explaining why, instead of the
+        // app just vanishing with no trace to go on.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+                AppCrashLog.Record(ex);
+        };
+
         var splash = new SplashWindow();
         splash.Show();
 

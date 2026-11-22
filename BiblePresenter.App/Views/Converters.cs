@@ -40,6 +40,16 @@ public sealed class BoolToVisibilityConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>Visible while the bound value is null - a "pick one first" hint shown until something's actually selected.</summary>
+public sealed class NullToInverseVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is null ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public sealed class SlidesToTextConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -143,7 +153,7 @@ public sealed class PathToThumbnailConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>Shows a centered hint in the results area when the active list (Bible or Song) has nothing in it, instead of leaving bare empty space: [IsSongSearch, SearchResults.Count, SongResults.Count].</summary>
+/// <summary>Shows a centered hint in the results area when the active list (Bible or Song) has nothing in it, instead of leaving bare empty space: [IsSongSearch, SearchResults.Count, SongResults.Count, IsBrowsingScripture].</summary>
 public sealed class SearchEmptyStateVisibilityConverter : IMultiValueConverter
 {
     public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
@@ -151,6 +161,10 @@ public sealed class SearchEmptyStateVisibilityConverter : IMultiValueConverter
         var isSongSearch = values.Length > 0 && values[0] is true;
         var bibleCount = values.Length > 1 && values[1] is int i1 ? i1 : 0;
         var songCount = values.Length > 2 && values[2] is int i2 ? i2 : 0;
+        var isBrowsingScripture = values.Length > 3 && values[3] is true;
+        if (isBrowsingScripture && !isSongSearch)
+            return Visibility.Collapsed;
+
         var activeCount = isSongSearch ? songCount : bibleCount;
         return activeCount == 0 ? Visibility.Visible : Visibility.Collapsed;
     }

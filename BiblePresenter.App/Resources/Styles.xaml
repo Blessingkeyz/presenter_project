@@ -15,6 +15,7 @@
     <local:ScreenToLabelConverter x:Key="ScreenToLabel" />
     <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
     <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    <local:NullToInverseVisibilityConverter x:Key="NullToInverseVisibility" />
     <local:SlidesToTextConverter x:Key="SlidesToText" />
     <local:InverseBoolConverter x:Key="InverseBool" />
     <local:PathToImageSourceConverter x:Key="PathToImageSource" />
@@ -125,6 +126,79 @@
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Scripture browse panel: chapter/verse number grids (tap a number, no typing). ListBox rather than
+         a plain ItemsControl so selection highlighting comes for free from SelectedItem binding. -->
+    <Style x:Key="NumberGridListBox" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="NumberGridItem" TargetType="ListBoxItem">
+        <Setter Property="Width" Value="42" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Margin" Value="3" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{StaticResource Parchment}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Bd" Background="{StaticResource InputBg}" BorderBrush="{StaticResource InputBorder}"
+                            BorderThickness="1" CornerRadius="5">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource InputBorder}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Candle}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Candle}" />
+                            <Setter Property="Foreground" Value="#FF1C1815" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The book list in the same panel - a plain list, but selection reads the same gold as the number grid above. -->
+    <Style x:Key="BrowseBookListItem" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Foreground" Value="{StaticResource Parchment}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource InputBg}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Candle}" />
+                            <Setter Property="Foreground" Value="#FF1C1815" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

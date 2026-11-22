@@ -126,6 +126,64 @@ public partial class MainWindow : Window
             _viewModel.GoLiveCommand.Execute(null);
     }
 
+    // ---- Scripture browse: click-and-drag a range of verse tiles, same gesture as the Set-mode Add Scripture dialog ----
+
+    private int? _verseDragAnchor;
+    private bool _isDragSelectingVerses;
+
+    private void BrowseVerseGridList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (FindAncestorListBoxItem(e.OriginalSource as DependencyObject)?.DataContext is not int anchor)
+            return;
+
+        _verseDragAnchor = anchor;
+    }
+
+    // Capture only kicks in once the pointer actually leaves the anchor tile - grabbing it on mouse-down
+    // unconditionally hijacked the ListBox's own click/double-click handling, breaking plain single-verse selection.
+    private void BrowseVerseGridList_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _verseDragAnchor is not int anchor)
+            return;
+
+        if (FindAncestorListBoxItem(e.OriginalSource as DependencyObject)?.DataContext is not int current)
+            return;
+
+        if (!_isDragSelectingVerses)
+        {
+            if (current == anchor)
+                return; // still on the tile that was clicked - not a drag yet
+
+            _isDragSelectingVerses = true;
+            BrowseVerseGridList.CaptureMouse();
+        }
+
+        var low = Math.Min(anchor, current);
+        var high = Math.Max(anchor, current);
+        BrowseVerseGridList.SelectedItems.Clear();
+        foreach (var number in BrowseVerseGridList.Items.Cast<int>().Where(n => n >= low && n <= high))
+            BrowseVerseGridList.SelectedItems.Add(number);
+
+        _viewModel.SelectBrowseVerseRange(BrowseVerseGridList.SelectedItems.Cast<int>().ToList());
+    }
+
+    private void BrowseVerseGridList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _verseDragAnchor = null;
+        if (!_isDragSelectingVerses)
+            return;
+
+        _isDragSelectingVerses = false;
+        BrowseVerseGridList.ReleaseMouseCapture();
+    }
+
+    private static ListBoxItem? FindAncestorListBoxItem(DependencyObject? source)
+    {
+        while (source is not null and not ListBoxItem)
+            source = VisualTreeHelper.GetParent(source);
+        return source as ListBoxItem;
+    }
+
     private void TranslationBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (TranslationBox.SelectedItem is not Translation selected)
